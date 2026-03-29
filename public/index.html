@@ -1,0 +1,1822 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bau-Protokoll Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --primary:#002E4D; --primary-l:#003d66; --primary-d:#00233b;
+  --accent:#C8A84B;  --accent-l:#e6c96b;
+  --bg:#f4f6f9; --surface:#fff; --surface2:#f0f3f7;
+  --border:#d8dde6; --text:#0f1923; --muted:#6b7a8d; --light:#9aaab8;
+  --danger:#d64045; --success:#2e7d32; --warn:#b86e00;
+  --sw:280px; --hh:60px; --r:8px;
+  --shadow:0 2px 12px rgba(0,46,77,.10);
+  --shadow-lg:0 8px 32px rgba(0,46,77,.16);
+  font-family:'DM Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);min-height:100vh}
+
+/* ── TOPBAR ── */
+.topbar{height:var(--hh);background:var(--primary);display:flex;align-items:center;
+  padding:0 20px;gap:16px;position:fixed;top:0;left:0;right:0;z-index:100;
+  box-shadow:0 2px 12px rgba(0,0,0,.2)}
+.topbar-logo{display:flex;align-items:center;gap:10px;color:#fff;font-weight:700;
+  font-size:15px;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;flex-shrink:0}
+.topbar-logo:hover{opacity:.85}
+.topbar-crumb{flex:1;display:flex;align-items:center;gap:8px;font-size:13px;
+  color:rgba(255,255,255,.55)}
+.topbar-crumb span{color:rgba(255,255,255,.85)}
+.topbar-crumb .sep{font-size:16px}
+.topbar-actions{display:flex;align-items:center;gap:8px}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--r);
+  font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;border:none;
+  transition:all .15s;white-space:nowrap}
+.btn-primary{background:var(--accent);color:var(--primary-d)}
+.btn-primary:hover{background:var(--accent-l);transform:translateY(-1px)}
+.btn-ghost{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.2)}
+.btn-ghost:hover{background:rgba(255,255,255,.2)}
+.btn-outline{background:transparent;color:var(--primary);border:1.5px solid var(--border)}
+.btn-outline:hover{border-color:var(--primary);background:var(--surface2)}
+.btn-danger{background:#fde8e8;color:var(--danger);border:1px solid #f5c0c0}
+.btn-danger:hover{background:#f5c0c0}
+.btn-success{background:#e8f5e9;color:var(--success);border:1px solid #c8e6c9}
+.btn-success:hover{background:#c8e6c9}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-xs{padding:2px 7px;font-size:11px}
+
+/* ── LAYOUT ── */
+.app-layout{display:flex;margin-top:var(--hh);min-height:calc(100vh - var(--hh))}
+
+/* ── PROTOCOL LIST VIEW ── */
+#view-list{min-height:100vh;padding-top:var(--hh)}
+.list-page{max-width:860px;margin:0 auto;padding:40px 24px}
+.list-page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px}
+.list-page-title{font-size:24px;font-weight:700;color:var(--primary)}
+.list-page-sub{font-size:14px;color:var(--muted);margin-top:4px}
+.protocol-cards{display:grid;gap:14px}
+.protocol-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:18px 22px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:16px}
+.protocol-card:hover{border-color:var(--primary);box-shadow:var(--shadow-lg);transform:translateY(-1px)}
+.pc-icon{width:44px;height:44px;background:var(--primary);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pc-info{flex:1}
+.pc-title{font-size:15px;font-weight:600;color:var(--primary)}
+.pc-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.pc-meta{font-size:12px;color:var(--light);font-family:'DM Mono',monospace}
+.pc-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(0,46,77,.07);
+  color:var(--primary);padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600}
+.pc-delete{padding:6px 10px;font-size:12px;opacity:0;transition:opacity .15s}
+.protocol-card:hover .pc-delete{opacity:1}
+.empty-list{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-list svg{margin-bottom:16px;opacity:.4}
+
+/* ── SIDEBAR ── */
+.sidebar{width:var(--sw);background:var(--surface);border-right:1px solid var(--border);
+  position:fixed;top:var(--hh);left:0;bottom:0;overflow-y:auto;display:flex;flex-direction:column}
+.sidebar-header{padding:14px;border-bottom:1px solid var(--border);position:sticky;top:0;
+  background:var(--surface);z-index:10}
+.sidebar-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;
+  color:var(--muted);margin-bottom:8px}
+.search-wrap{position:relative}
+.search-wrap input{width:100%;padding:6px 10px 6px 30px;border:1.5px solid var(--border);
+  border-radius:6px;font-size:13px;font-family:inherit;background:var(--bg);
+  color:var(--text);transition:border-color .15s}
+.search-wrap input:focus{outline:none;border-color:var(--primary)}
+.search-ico{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.sidebar-nav{padding:8px 0;flex:1}
+.topic-group{margin-bottom:2px}
+.topic-hd{display:flex;align-items:center;gap:6px;padding:8px 12px 8px 16px;cursor:pointer;
+  font-weight:600;font-size:13px;transition:background .12s;user-select:none}
+.topic-hd:hover{background:var(--surface2)}
+.topic-num{font-size:11px;font-weight:700;color:var(--primary);background:rgba(0,46,77,.08);
+  border-radius:4px;padding:1px 6px;min-width:22px;text-align:center;font-family:'DM Mono',monospace}
+.chev{margin-left:auto;transition:transform .2s;color:var(--muted);flex-shrink:0}
+.chev.open{transform:rotate(90deg)}
+.sub-list{display:none}
+.sub-list.open{display:block}
+.sub-item{display:flex;align-items:center;gap:8px;padding:5px 12px 5px 32px;cursor:pointer;
+  font-size:12.5px;color:var(--muted);transition:all .12s;border-left:2px solid transparent;margin-left:14px}
+.sub-item:hover{color:var(--primary);background:rgba(0,46,77,.04)}
+.sub-item.active{color:var(--primary);border-left-color:var(--primary);
+  background:rgba(0,46,77,.06);font-weight:500}
+.sidebar-add{padding:12px 14px;border-top:1px solid var(--border)}
+.sidebar-add button{width:100%;justify-content:center;padding:8px}
+
+/* ── MAIN ── */
+.main-content{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;min-width:0}
+.meta-header{background:var(--surface);border-bottom:1px solid var(--border);padding:18px 28px 0}
+.meta-top{display:flex;justify-content:space-between;gap:24px;margin-bottom:14px}
+.meta-grid{display:grid;grid-template-columns:repeat(3,auto);gap:12px 28px}
+.meta-field{display:flex;flex-direction:column;gap:2px}
+.meta-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+.meta-val{font-size:13px;font-weight:500;color:var(--text)}
+.meta-val.hi{color:var(--primary);font-weight:700;font-size:15px}
+.meta-right{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.proto-badge{display:inline-flex;align-items:center;gap:7px;background:var(--primary);
+  color:#fff;padding:5px 14px;border-radius:20px;font-size:13px;font-weight:600}
+.proto-badge .dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
+.participants-row{display:flex;gap:24px;padding:10px 0;border-top:1px solid var(--border);flex-wrap:wrap}
+.pg-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;
+  color:var(--muted);margin-bottom:4px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px 3px 4px;
+  background:var(--surface2);border-radius:20px;font-size:12px}
+.av{width:22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0}
+.chip-role{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-left:2px}
+
+/* ── TABS ── */
+.tabs{display:flex;padding:0 28px;border-bottom:1px solid var(--border);background:var(--surface)}
+.tab{padding:11px 18px;font-size:13.5px;font-weight:500;color:var(--muted);cursor:pointer;
+  border-bottom:2.5px solid transparent;transition:all .15s;white-space:nowrap}
+.tab:hover{color:var(--primary)}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
+
+/* ── TOOLBAR ── */
+.toolbar{display:flex;align-items:center;gap:10px;padding:12px 28px;
+  background:var(--bg);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.tl-left{display:flex;align-items:center;gap:8px;flex:1}
+.tl-right{display:flex;align-items:center;gap:8px}
+.filter-pill{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;
+  border:1.5px solid var(--border);border-radius:20px;font-size:12px;font-weight:500;
+  cursor:pointer;background:var(--surface);transition:all .12s;color:var(--muted)}
+.filter-pill:hover,.filter-pill.active{border-color:var(--primary);color:var(--primary);background:rgba(0,46,77,.06)}
+
+/* ── PROTOCOL AREA ── */
+.protocol-area{flex:1;padding:0 28px 40px;overflow-y:auto}
+.topic-block{margin-top:24px;background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;overflow:hidden;box-shadow:var(--shadow);transition:box-shadow .2s}
+.topic-block:hover{box-shadow:var(--shadow-lg)}
+.topic-block-hd{display:flex;align-items:center;gap:12px;padding:13px 18px;
+  background:var(--primary);cursor:pointer}
+.topic-block-num{font-size:12px;font-weight:700;color:rgba(255,255,255,.7);
+  font-family:'DM Mono',monospace;background:rgba(255,255,255,.12);padding:2px 8px;border-radius:4px}
+.topic-block-title{font-size:15px;font-weight:600;color:#fff;flex:1}
+.topic-block-acts{display:flex;gap:5px;opacity:0;transition:opacity .15s}
+.topic-block-hd:hover .topic-block-acts{opacity:1}
+.icon-btn{width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+  border-radius:6px;border:none;background:rgba(255,255,255,.15);color:#fff;cursor:pointer;transition:background .12s}
+.icon-btn:hover{background:rgba(255,255,255,.28)}
+.icon-btn.danger{background:rgba(214,64,69,.4)}
+.icon-btn.danger:hover{background:rgba(214,64,69,.7)}
+
+/* ── SUBTOPIC ── */
+.sub-block{border-top:1px solid var(--border)}
+.sub-block-hd{display:flex;align-items:center;gap:10px;padding:9px 18px;
+  background:rgba(0,46,77,.04);border-bottom:1px solid var(--border);cursor:pointer}
+.sub-num{font-size:11px;font-weight:700;font-family:'DM Mono',monospace;color:var(--primary);
+  background:rgba(0,46,77,.1);padding:2px 7px;border-radius:4px}
+.sub-title{font-size:13.5px;font-weight:600;color:var(--primary);flex:1}
+.sub-acts{display:flex;gap:5px;opacity:0;transition:opacity .15s}
+.sub-block-hd:hover .sub-acts{opacity:1}
+.icon-btn-sm{width:24px;height:24px;display:flex;align-items:center;justify-content:center;
+  border-radius:5px;border:none;background:rgba(0,46,77,.08);color:var(--primary);cursor:pointer;transition:background .12s}
+.icon-btn-sm:hover{background:rgba(0,46,77,.18)}
+.icon-btn-sm.danger{background:rgba(214,64,69,.1);color:var(--danger)}
+.icon-btn-sm.danger:hover{background:rgba(214,64,69,.2)}
+
+/* ── ENTRIES TABLE ── */
+.et{width:100%;border-collapse:collapse}
+.et th{padding:7px 12px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;
+  color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+.et td{padding:9px 12px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:top}
+.et tr:last-child td{border-bottom:none}
+.et tr:hover td{background:rgba(0,46,77,.025)}
+.entry-nr{font-family:'DM Mono',monospace;font-size:12px;font-weight:600;color:var(--primary);white-space:nowrap}
+.entry-date{font-size:11.5px;color:var(--muted);white-space:nowrap;font-family:'DM Mono',monospace}
+.entry-desc{max-width:460px;line-height:1.5}
+.entry-new-hl{background:rgba(200,168,75,.07);border-left:3px solid var(--accent)}
+.new-pill{display:inline-flex;align-items:center;padding:1px 7px;background:var(--accent);
+  color:var(--primary-d);border-radius:10px;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.5px;margin-left:6px}
+.typ-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;
+  font-size:11px;font-weight:600;white-space:nowrap}
+.typ-aufgabe{background:#e8f4fd;color:#1565c0}
+.typ-info{background:#f3e8fd;color:#6a1b9a}
+.typ-entscheid{background:#fff3e0;color:var(--warn)}
+.status-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;
+  border-radius:12px;font-size:11px;font-weight:600}
+.s-offen{background:#e8f4fd;color:#1565c0}
+.s-erledigt{background:#e8f5e9;color:var(--success)}
+.s-asap{background:#fff3e0;color:var(--warn)}
+.resp-chip{display:inline-flex;align-items:center;gap:5px;padding:2px 8px 2px 4px;
+  background:var(--surface2);border-radius:12px;font-size:11.5px;font-weight:500;white-space:nowrap}
+.resp-av{width:18px;height:18px;border-radius:50%;background:var(--primary);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700}
+.faellig{font-size:12px;font-family:'DM Mono',monospace;white-space:nowrap}
+.f-over{color:var(--danger);font-weight:600}
+.f-soon{color:var(--warn)}
+.f-ok{color:var(--muted)}
+.row-acts{display:flex;gap:4px;opacity:0;transition:opacity .15s}
+tr:hover .row-acts{opacity:1}
+.add-entry-row{padding:8px 18px;background:rgba(0,46,77,.02);border-top:1px dashed var(--border)}
+.add-entry-btn{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;
+  border:1.5px dashed var(--border);border-radius:6px;color:var(--muted);font-size:12px;
+  font-family:inherit;background:transparent;cursor:pointer;transition:all .15s}
+.add-entry-btn:hover{border-color:var(--primary);color:var(--primary)}
+.add-sub-row{display:flex;align-items:center;gap:8px;padding:9px 18px;
+  border-top:1px dashed var(--border);background:rgba(0,46,77,.02)}
+.add-sub-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 14px;
+  border:1.5px dashed var(--border);border-radius:6px;color:var(--muted);font-size:12px;
+  font-family:inherit;background:transparent;cursor:pointer;transition:all .15s}
+.add-sub-btn:hover{border-color:var(--primary);color:var(--primary)}
+.empty-entries{padding:20px;text-align:center;color:var(--muted);font-size:12.5px;font-style:italic}
+
+/* ── DECKBLATT ── */
+.db-area{flex:1;padding:28px 28px 60px;display:none}
+.db-area.active{display:block}
+.db-paper{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  box-shadow:var(--shadow-lg);max-width:860px;margin:0 auto;overflow:hidden}
+.db-stripe{height:6px;background:linear-gradient(90deg,var(--primary) 60%,var(--accent) 100%)}
+.db-inner{padding:32px 40px}
+.db-title-row{display:flex;justify-content:space-between;align-items:flex-start;
+  margin-bottom:24px;padding-bottom:18px;border-bottom:2px solid var(--primary)}
+.db-fi{display:flex;align-items:baseline;gap:8px;margin-bottom:5px}
+.db-fl{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;
+  color:var(--muted);min-width:110px;flex-shrink:0}
+.db-ed{font-size:13.5px;font-weight:500;color:var(--text);border:none;
+  border-bottom:1.5px dashed transparent;background:transparent;font-family:inherit;
+  padding:2px 4px;border-radius:4px;transition:all .15s;min-width:120px}
+.db-ed:hover{border-bottom-color:var(--border);background:var(--surface2)}
+.db-ed:focus{outline:none;border-bottom-color:var(--primary);background:rgba(0,46,77,.04)}
+.db-ph{margin-top:8px;font-size:16px;font-weight:700;color:var(--primary);display:flex;align-items:center;gap:6px}
+.db-ph .db-ed{font-size:16px;font-weight:700;color:var(--primary)}
+.db-logo{width:110px;height:50px;border:1.5px dashed var(--border);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  color:var(--light);font-size:11px;background:var(--surface2);transition:all .15s}
+.db-logo:hover{border-color:var(--primary);color:var(--primary)}
+.db-main-grid{display:grid;grid-template-columns:1fr 1fr 190px;gap:24px;margin-bottom:24px}
+.db-sec-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;
+  color:var(--primary);margin-bottom:8px;padding-bottom:4px;border-bottom:2px solid var(--primary)}
+.db-pt{width:100%;border-collapse:collapse}
+.db-pt th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;
+  color:var(--muted);padding:3px 7px;background:var(--surface2);border:1px solid var(--border);text-align:left}
+.db-pt td{padding:3px 2px;border:1px solid var(--border);vertical-align:middle}
+.db-pt tr:hover td{background:rgba(0,46,77,.02)}
+.db-ci{width:100%;border:none;background:transparent;font-family:inherit;font-size:12.5px;color:var(--text);padding:3px 6px;border-radius:3px}
+.db-ci:focus{outline:none;background:rgba(0,46,77,.05)}
+.db-ri{width:40px;text-align:center;font-family:'DM Mono',monospace;font-weight:600;font-size:11px;color:var(--primary)}
+.db-add{width:100%;margin-top:5px;padding:4px;border:1.5px dashed var(--border);
+  border-radius:5px;background:transparent;color:var(--light);font-size:11px;
+  font-family:inherit;cursor:pointer;transition:all .15s}
+.db-add:hover{border-color:var(--primary);color:var(--primary)}
+.db-del{width:18px;height:18px;border:none;background:transparent;color:var(--light);
+  cursor:pointer;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:13px;padding:0}
+.db-del:hover{color:var(--danger);background:rgba(214,64,69,.08)}
+.db-meta-col{display:flex;flex-direction:column;gap:12px}
+.db-mf{display:flex;flex-direction:column;gap:3px}
+.db-ml{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--accent)}
+.db-mi{border:none;border-bottom:1.5px dashed var(--border);background:transparent;
+  font-family:inherit;font-size:13px;font-weight:600;color:var(--text);
+  padding:2px 0;width:100%;transition:border-color .15s}
+.db-mi:focus{outline:none;border-bottom-color:var(--primary)}
+.db-anl-sec{border-top:1px solid var(--border);padding-top:16px;margin-top:4px}
+.db-anl-row{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px dashed var(--border)}
+.db-anl-row:last-of-type{border-bottom:none}
+.db-anl-bul{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.db-anl-in{flex:1;border:none;background:transparent;font-family:inherit;font-size:13px;color:var(--text);padding:2px 0}
+.db-anl-in:focus{outline:none}
+.db-vf-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding-top:16px;border-top:1px solid var(--border);margin-top:4px}
+.db-vff{display:flex;flex-direction:column;gap:4px}
+.db-vfl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+.db-vfi{border:none;border-bottom:1.5px dashed var(--border);background:transparent;
+  font-family:inherit;font-size:13px;color:var(--text);padding:2px 0;transition:border-color .15s}
+.db-vfi:focus{outline:none;border-bottom-color:var(--primary)}
+.db-save-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 40px;
+  background:var(--surface2);border-top:1px solid var(--border)}
+.db-dirty{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.db-dirty-dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
+
+/* ── MODALS ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;
+  align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:12px;width:520px;max-width:95vw;
+  max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:mIn .2s ease}
+.modal-lg{width:780px}
+@keyframes mIn{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
+.modal-hd{display:flex;align-items:center;justify-content:space-between;
+  padding:16px 22px;border-bottom:1px solid var(--border)}
+.modal-title{font-size:15px;font-weight:700;color:var(--primary)}
+.modal-close{width:30px;height:30px;display:flex;align-items:center;justify-content:center;
+  border-radius:6px;border:none;background:var(--surface2);color:var(--muted);cursor:pointer;font-size:18px}
+.modal-close:hover{background:var(--border)}
+.modal-body{padding:22px;display:flex;flex-direction:column;gap:14px}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--border)}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.7px}
+.form-input,.form-select,.form-textarea{width:100%;padding:9px 12px;border:1.5px solid var(--border);
+  border-radius:6px;font-family:inherit;font-size:13.5px;color:var(--text);background:var(--surface);transition:border-color .15s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,46,77,.08)}
+.form-textarea{resize:vertical;min-height:70px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* ── KI REVIEW ── */
+.ki-suggestion-card{background:var(--surface);border:1.5px solid var(--border);border-radius:10px;
+  padding:16px 18px;transition:all .15s;margin-bottom:10px}
+.ki-suggestion-card.accepted{border-color:var(--success);background:#f0faf0}
+.ki-suggestion-card.rejected{opacity:.45;border-style:dashed}
+.ki-card-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.ki-topic-path{font-size:12px;font-weight:600;color:var(--primary);
+  background:rgba(0,46,77,.07);padding:3px 10px;border-radius:12px}
+.ki-card-body{display:grid;grid-template-columns:1fr;gap:10px}
+.ki-card-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+.ki-all-bar{display:flex;align-items:center;justify-content:space-between;
+  padding:14px 22px;border-bottom:1px solid var(--border);background:var(--surface2)}
+.ki-progress{font-size:13px;color:var(--muted)}
+.ki-progress strong{color:var(--primary)}
+.ki-list{padding:18px 22px;max-height:60vh;overflow-y:auto}
+
+/* ── RECORDING MODAL ── */
+.recording-area{border:2px dashed var(--border);border-radius:10px;padding:24px;
+  text-align:center;transition:all .15s;background:var(--surface2)}
+.recording-area.active{border-color:var(--danger);background:#fff5f5;animation:recPulse 2s infinite}
+@keyframes recPulse{0%,100%{box-shadow:0 0 0 0 rgba(214,64,69,.3)}50%{box-shadow:0 0 0 8px rgba(214,64,69,0)}}
+.rec-dot{width:14px;height:14px;border-radius:50%;background:var(--danger);
+  display:inline-block;margin-right:6px;animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.transcript-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:14px;min-height:100px;max-height:200px;overflow-y:auto;font-size:13px;
+  line-height:1.6;color:var(--text);white-space:pre-wrap;text-align:left}
+.transcript-interim{color:var(--muted);font-style:italic}
+
+/* ── FAB ── */
+.record-fab{position:fixed;bottom:28px;right:28px;width:54px;height:54px;border-radius:50%;
+  background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;box-shadow:0 4px 20px rgba(200,168,75,.4);transition:all .2s;z-index:200}
+.record-fab:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(200,168,75,.55)}
+.record-fab.recording{background:var(--danger);animation:pulseRec 1.4s infinite}
+@keyframes pulseRec{0%,100%{box-shadow:0 0 0 0 rgba(214,64,69,.5)}50%{box-shadow:0 0 0 14px rgba(214,64,69,0)}}
+.fab-label{position:fixed;bottom:90px;right:28px;background:var(--primary);color:#fff;
+  font-size:12px;font-weight:500;padding:5px 12px;border-radius:20px;white-space:nowrap;
+  pointer-events:none;opacity:0;transform:translateY(6px);transition:all .2s}
+.record-fab:hover ~ .fab-label,.record-fab.recording ~ .fab-label{opacity:1;transform:translateY(0)}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:var(--primary);color:#fff;padding:11px 22px;border-radius:8px;
+  font-size:13.5px;font-weight:500;box-shadow:var(--shadow-lg);z-index:999;transition:transform .3s}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--light)}
+
+/* ── AUFGABEN ── */
+.aufgaben-table{width:100%;border-collapse:collapse;background:var(--surface);
+  border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.aufgaben-table th{padding:10px 14px;font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.8px;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border);text-align:left}
+.aufgaben-table td{padding:10px 14px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:top}
+.aufgaben-table tr:last-child td{border-bottom:none}
+.aufgaben-table tr:hover td{background:rgba(0,46,77,.025)}
+
+/* ── PRINT ── */
+@media print {
+  body > *:not(#print-area){display:none!important}
+  #print-area{display:block!important;padding:0;margin:0}
+  .pr-paper{font-family:'Arial',sans-serif;font-size:10pt;color:#000;max-width:none;padding:15mm 20mm}
+  .pr-header{margin-bottom:6mm}
+  .pr-meta{font-size:9pt;margin-bottom:2mm}
+  .pr-title{font-size:12pt;font-weight:bold;margin-bottom:4mm}
+  .pr-section-title{font-size:10pt;font-weight:bold;margin:3mm 0 2mm}
+  .pr-table{width:100%;border-collapse:collapse;margin-bottom:4mm}
+  .pr-table th{background:#002E4D;color:#fff;padding:3mm 4mm;font-size:9pt;font-weight:bold;text-align:left}
+  .pr-table .topic-row td{background:#002E4D;color:#fff;font-weight:bold;padding:2mm 4mm}
+  .pr-table .sub-row td{background:#d4d4d4;font-weight:bold;padding:1.5mm 4mm}
+  .pr-table td{padding:1.5mm 4mm;border:0.5pt solid #ccc;vertical-align:top;font-size:9pt}
+  .pr-table tr:nth-child(even) td{background:#f5f5f5}
+  .pr-new{font-weight:bold}
+  .pr-date{white-space:nowrap;font-size:8pt}
+  @page{margin:15mm 20mm;size:A4}
+}
+</style>
+</head>
+<body>
+
+<!-- ════ VIEW: PROTOKOLL-LISTE ════ -->
+<div id="view-list">
+  <header class="topbar">
+    <div class="topbar-logo" onclick="showList()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+      </svg>
+      ProtoLog
+    </div>
+    <div class="topbar-crumb"><span>Alle Protokolle</span></div>
+  </header>
+  <div class="list-page" style="padding-top:calc(var(--hh) + 32px)">
+    <div class="list-page-header">
+      <div>
+        <div class="list-page-title">Bau-Protokolle</div>
+        <div class="list-page-sub">Alle Baubesprechungsprotokoll auf einen Blick</div>
+      </div>
+      <button class="btn btn-primary" onclick="openModal('new-proto')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Neues Protokoll
+      </button>
+    </div>
+    <div id="protocol-list-container"></div>
+  </div>
+</div>
+
+<!-- ════ VIEW: PROTOKOLL-DETAIL ════ -->
+<div id="view-detail" style="display:none">
+  <header class="topbar">
+    <div class="topbar-logo" onclick="showList()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+      </svg>
+      ProtoLog
+    </div>
+    <div class="topbar-crumb">
+      <span style="cursor:pointer;color:rgba(255,255,255,.55)" onclick="showList()">Protokolle</span>
+      <span class="sep">›</span>
+      <span id="crumb-title" style="color:#fff;font-weight:600"></span>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost" onclick="printProtocol()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        PDF Export
+      </button>
+      <button class="btn btn-primary" onclick="openModal('ki-aufnahme')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+        KI-Aufnahme
+      </button>
+    </div>
+  </header>
+
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">Gliederung</div>
+        <div class="search-wrap">
+          <svg class="search-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" placeholder="Thema suchen …" oninput="filterSidebar(this.value)">
+        </div>
+      </div>
+      <nav class="sidebar-nav" id="sidebar-nav"></nav>
+      <div class="sidebar-add">
+        <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center" onclick="openModal('new-topic')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Thema hinzufügen
+        </button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="meta-header" id="meta-header"></div>
+      <div class="tabs">
+        <div class="tab" onclick="switchTab('deckblatt',this)">Deckblatt</div>
+        <div class="tab active" onclick="switchTab('protokoll',this)">Protokoll</div>
+        <div class="tab" onclick="switchTab('aufgaben',this)">Aufgaben</div>
+      </div>
+      <div class="toolbar" id="toolbar">
+        <div class="tl-left">
+          <div class="filter-pill active" onclick="setFilter('alle',this)">Alle</div>
+          <div class="filter-pill" onclick="setFilter('offen',this)">🔵 Offen</div>
+          <div class="filter-pill" onclick="setFilter('erledigt',this)">🟢 Erledigt</div>
+          <div class="filter-pill" onclick="setFilter('neu',this)">⭐ Neu</div>
+        </div>
+        <div class="tl-right">
+          <button class="btn btn-primary btn-sm" onclick="openModal('new-entry')">+ Neuer Punkt</button>
+        </div>
+      </div>
+      <div class="protocol-area" id="protocol-area"></div>
+      <div class="db-area" id="db-area"></div>
+      <div class="db-area" id="aufgaben-area"></div>
+    </main>
+  </div>
+
+  <button class="record-fab" id="fab" onclick="openModal('ki-aufnahme')" title="KI-Aufnahme starten">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round">
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+      <line x1="12" y1="19" x2="12" y2="23"/>
+    </svg>
+  </button>
+  <div class="fab-label">KI-Aufnahme starten</div>
+</div>
+
+<!-- ════ PRINT AREA ════ -->
+<div id="print-area" style="display:none"></div>
+
+<!-- ════ TOAST ════ -->
+<div class="toast" id="toast"></div>
+
+<!-- ════ MODALS ════ -->
+
+<!-- Neues Protokoll -->
+<div class="modal-overlay" id="modal-new-proto">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-title">Neues Protokoll anlegen</div><button class="modal-close" onclick="closeModal('new-proto')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Protokoll-Titel*</label><input class="form-input" id="np-titel" placeholder="z.B. BH-JF 06"></div>
+        <div class="form-group"><label class="form-label">Protokoll-Nr.</label><input class="form-input" id="np-nr" placeholder="z.B. BH-JF 06"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Bauherr</label><input class="form-input" id="np-bauherr" placeholder="Müller & Partner GmbH"></div>
+        <div class="form-group"><label class="form-label">Bauvorhaben</label><input class="form-input" id="np-bauvorhaben" placeholder="Neubau Bürogebäude Süd"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Datum</label><input class="form-input" id="np-datum" type="date"></div>
+        <div class="form-group"><label class="form-label">Ort</label><input class="form-input" id="np-ort" placeholder="TEAMS / Frankfurt"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Verfasser</label><input class="form-input" id="np-verfasser" placeholder="Hr. Schneider"></div>
+        <div class="form-group"><label class="form-label">E-Mail</label><input class="form-input" id="np-kontakt" placeholder="s@buero.de"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('new-proto')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="createProtocol()">Protokoll erstellen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Neues Thema -->
+<div class="modal-overlay" id="modal-new-topic">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-title" id="new-topic-title">Neues Thema</div><button class="modal-close" onclick="closeModal('new-topic')">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Titel</label><input class="form-input" id="nt-titel" placeholder="z.B. Außenanlagen, Brandschutz …"></div>
+      <div class="form-group" id="nt-sub-group"><label class="form-label">Erstes Unterthema (optional)</label><input class="form-input" id="nt-sub" placeholder="z.B. Allgemeines"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('new-topic')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="addTopicOrSub()">Erstellen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Neuer Eintrag -->
+<div class="modal-overlay" id="modal-new-entry">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-title">Neuen Punkt hinzufügen</div><button class="modal-close" onclick="closeModal('new-entry')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Thema</label><select class="form-select" id="ne-topic" onchange="updateSubSelect()"><option value="">-- wählen --</option></select></div>
+        <div class="form-group"><label class="form-label">Unterthema</label><select class="form-select" id="ne-sub"><option value="">-- wählen --</option></select></div>
+      </div>
+      <div class="form-group"><label class="form-label">Beschreibung*</label><textarea class="form-textarea" id="ne-desc" placeholder="Beschreibung des Protokollpunkts …"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Typ</label><select class="form-select" id="ne-typ"><option>Aufgabe</option><option>Info</option><option>Entscheid</option></select></div>
+        <div class="form-group"><label class="form-label">Status</label><select class="form-select" id="ne-status"><option>Offen</option><option>Erledigt</option><option>ASAP</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Zuständig</label><input class="form-input" id="ne-resp" placeholder="Hr. …"></div>
+        <div class="form-group"><label class="form-label">Fällig am</label><input class="form-input" id="ne-faellig" type="date"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('new-entry')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="addEntry()">Punkt hinzufügen</button>
+    </div>
+  </div>
+</div>
+
+<!-- KI Aufnahme -->
+<div class="modal-overlay" id="modal-ki-aufnahme">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-title">🎙 KI-Aufnahme</div><button class="modal-close" onclick="closeModal('ki-aufnahme');stopRecording()">×</button></div>
+    <div class="modal-body">
+      <div class="recording-area" id="rec-area">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" id="rec-icon-big" style="margin-bottom:10px">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/>
+        </svg>
+        <div id="rec-status" style="font-size:13px;font-weight:600;color:var(--text)">Aufnahme starten</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">Chrome erforderlich · Mikrofon-Zugriff erlauben</div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center">
+        <button class="btn btn-primary" id="rec-btn" onclick="toggleRecording()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="6" fill="currentColor"/></svg>
+          Aufnahme starten
+        </button>
+        <button class="btn btn-outline" onclick="clearTranscript()">Leeren</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Transkript (bearbeitbar)</label>
+        <textarea class="form-textarea transcript-box" id="transcript" style="min-height:140px" placeholder="Das Transkript erscheint hier …&#10;&#10;Alternativ: Text manuell eingeben."></textarea>
+      </div>
+      <div style="font-size:12px;color:var(--muted);text-align:center;line-height:1.5">
+        Tipp: Sprechen Sie deutlich und nennen Sie Zuständigkeiten und Termine direkt.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('ki-aufnahme');stopRecording()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="analyzeTranscript()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/></svg>
+        KI analysieren
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- KI Review -->
+<div class="modal-overlay" id="modal-ki-review">
+  <div class="modal modal-lg">
+    <div class="modal-hd">
+      <div class="modal-title">✅ KI-Vorschläge prüfen</div>
+      <button class="modal-close" onclick="closeModal('ki-review')">×</button>
+    </div>
+    <div class="ki-all-bar">
+      <div class="ki-progress" id="ki-progress">0 von 0 ausgewählt</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline btn-sm" onclick="selectAllSuggestions(false)">Alle ablehnen</button>
+        <button class="btn btn-success btn-sm" onclick="selectAllSuggestions(true)">Alle übernehmen</button>
+      </div>
+    </div>
+    <div class="ki-list" id="ki-list"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('ki-review')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="acceptSuggestions()">Ausgewählte übernehmen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Eintrag bearbeiten -->
+<div class="modal-overlay" id="modal-edit-entry">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-title">Punkt bearbeiten</div><button class="modal-close" onclick="closeModal('edit-entry')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="ee-id">
+      <div class="form-group"><label class="form-label">Beschreibung</label><textarea class="form-textarea" id="ee-desc"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Typ</label><select class="form-select" id="ee-typ"><option>Aufgabe</option><option>Info</option><option>Entscheid</option></select></div>
+        <div class="form-group"><label class="form-label">Status</label><select class="form-select" id="ee-status"><option>Offen</option><option>Erledigt</option><option>ASAP</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Zuständig</label><input class="form-input" id="ee-resp"></div>
+        <div class="form-group"><label class="form-label">Fällig am</label><input class="form-input" id="ee-faellig" type="date"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('edit-entry')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveEditEntry()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  APP STATE
+// ═══════════════════════════════════════════════════
+let S = {
+  protocols: [],
+  p: null,        // aktuelles Protokoll
+  filter: 'alle',
+  suggestions: [],
+  pendingTopicId: null,
+  pendingSubId: null,
+  isAddingSub: false,
+  recognition: null,
+  isRecording: false,
+  finalTranscript: '',
+  dbDirty: false,
+  dbData: { participants:[], verteiler:[], anlagen:[] }
+};
+
+// ═══════════════════════════════════════════════════
+//  API
+// ═══════════════════════════════════════════════════
+const api = {
+  async get(path) {
+    const r = await fetch('/api' + path);
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+  async post(path, body) {
+    const r = await fetch('/api' + path, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({error: r.statusText}));
+      throw new Error(err.error || r.statusText);
+    }
+    return r.json();
+  },
+  async put(path, body) {
+    const r = await fetch('/api' + path, {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  },
+  async del(path) {
+    const r = await fetch('/api' + path, {method:'DELETE'});
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }
+};
+
+// ═══════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════
+async function showList() {
+  document.getElementById('view-list').style.display = '';
+  document.getElementById('view-detail').style.display = 'none';
+  S.p = null;
+  await loadProtocols();
+  renderProtocolList();
+}
+
+async function showDetail(id) {
+  try {
+    S.p = await api.get('/protocols/' + id);
+    document.getElementById('view-list').style.display = 'none';
+    document.getElementById('view-detail').style.display = '';
+    document.getElementById('crumb-title').textContent = S.p.titel;
+    // Default: Protokoll-Tab
+    switchTabDirect('protokoll');
+    renderMeta();
+    renderSidebar();
+    renderProtocolArea();
+    scrollToTop();
+  } catch(e) { toast('Fehler: ' + e.message); }
+}
+
+function scrollToTop() { window.scrollTo(0,0); }
+
+// ═══════════════════════════════════════════════════
+//  PROTOKOLL-LISTE
+// ═══════════════════════════════════════════════════
+async function loadProtocols() {
+  S.protocols = await api.get('/protocols');
+}
+
+function renderProtocolList() {
+  const c = document.getElementById('protocol-list-container');
+  if (!S.protocols.length) {
+    c.innerHTML = `<div class="empty-list">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display:block;margin:0 auto 16px">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+      </svg>
+      <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:8px">Noch keine Protokolle</div>
+      <div>Legen Sie das erste Protokoll an.</div>
+    </div>`;
+    return;
+  }
+  c.innerHTML = S.protocols.map(p => `
+    <div class="protocol-card" onclick="showDetail(${p.id})">
+      <div class="pc-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+        </svg>
+      </div>
+      <div class="pc-info">
+        <div class="pc-title">${p.titel}</div>
+        <div class="pc-sub">${p.bauvorhaben || '—'} · ${p.bauherr || '—'}</div>
+        <div class="pc-meta">${p.datum || '—'} · ${p.ort || '—'}</div>
+      </div>
+      <div class="pc-badge">${p.protokoll_nr || p.titel}</div>
+      <button class="btn btn-danger btn-xs pc-delete" onclick="event.stopPropagation();deleteProtocol(${p.id})">✕</button>
+    </div>
+  `).join('');
+}
+
+async function createProtocol() {
+  const titel = document.getElementById('np-titel').value.trim();
+  if (!titel) { toast('Bitte Titel eingeben'); return; }
+  try {
+    const p = await api.post('/protocols', {
+      titel,
+      bauherr: document.getElementById('np-bauherr').value,
+      bauvorhaben: document.getElementById('np-bauvorhaben').value,
+      datum: formatDateDE(document.getElementById('np-datum').value),
+      ort: document.getElementById('np-ort').value,
+      verfasser: document.getElementById('np-verfasser').value,
+      kontakt: document.getElementById('np-kontakt').value,
+      protokoll_nr: document.getElementById('np-nr').value || titel,
+      protokoll_typ: 'Projekt-Jour-Fixe'
+    });
+    closeModal('new-proto');
+    toast('Protokoll angelegt ✓');
+    await showDetail(p.id);
+  } catch(e) { toast('Fehler: ' + e.message); }
+}
+
+async function deleteProtocol(id) {
+  if (!confirm('Protokoll und alle Daten löschen?')) return;
+  await api.del('/protocols/' + id);
+  toast('Protokoll gelöscht');
+  await loadProtocols();
+  renderProtocolList();
+}
+
+// ═══════════════════════════════════════════════════
+//  META HEADER
+// ═══════════════════════════════════════════════════
+function renderMeta() {
+  const p = S.p;
+  const chips = (arr, col='var(--primary)') => arr.map(x => `
+    <div class="chip"><div class="av" style="background:${col}">${initials(x.name)}</div>${x.name}<span class="chip-role">${x.kuerzel}</span></div>
+  `).join('');
+
+  document.getElementById('meta-header').innerHTML = `
+    <div class="meta-top">
+      <div class="meta-grid">
+        <div class="meta-field"><span class="meta-label">Bauherr</span><span class="meta-val">${p.bauherr||'—'}</span></div>
+        <div class="meta-field"><span class="meta-label">Bauvorhaben</span><span class="meta-val">${p.bauvorhaben||'—'}</span></div>
+        <div class="meta-field"><span class="meta-label">Ort</span><span class="meta-val">${p.ort||'—'}</span></div>
+        <div class="meta-field"><span class="meta-label">Protokoll-Nr.</span><span class="meta-val hi">${p.protokoll_nr||p.titel}</span></div>
+        <div class="meta-field"><span class="meta-label">Datum</span><span class="meta-val">${p.datum||'—'}</span></div>
+        <div class="meta-field"><span class="meta-label">Zeit</span><span class="meta-val">${p.zeit||'—'}</span></div>
+      </div>
+      <div class="meta-right">
+        <div class="proto-badge"><span class="dot"></span>${p.protokoll_typ||'Projekt-Jour-Fixe'}</div>
+        <div style="font-size:11px;color:var(--muted)">Verfasser: ${p.verfasser||'—'} · ${p.kontakt||''}</div>
+        <div style="font-size:11px;color:var(--muted)">Anlagen: ${(p.anlagen||[]).map(a=>a.titel).join(', ')||'—'}</div>
+      </div>
+    </div>
+    <div class="participants-row">
+      <div><div class="pg-title">Teilnehmer</div><div class="chips">${chips(p.participants||[])}</div></div>
+      <div><div class="pg-title">Verteiler</div><div class="chips">${chips(p.verteiler||[],'#1565c0')}</div></div>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════
+//  TABS
+// ═══════════════════════════════════════════════════
+function switchTab(tab, el) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  switchTabDirect(tab);
+}
+
+function switchTabDirect(tab) {
+  const pa = document.getElementById('protocol-area');
+  const da = document.getElementById('db-area');
+  const aa = document.getElementById('aufgaben-area');
+  const tb = document.getElementById('toolbar');
+  [pa,da,aa].forEach(x=>{ x.style.display='none'; x.classList.remove('active'); });
+  tb.style.display = 'none';
+  if (tab === 'protokoll') { pa.style.display='block'; tb.style.display='flex'; }
+  else if (tab === 'deckblatt') { da.style.display='block'; da.classList.add('active'); renderDeckblatt(); }
+  else if (tab === 'aufgaben') { aa.style.display='block'; aa.classList.add('active'); renderAufgaben(); }
+}
+
+// ═══════════════════════════════════════════════════
+//  SIDEBAR
+// ═══════════════════════════════════════════════════
+function renderSidebar(filter='') {
+  const nav = document.getElementById('sidebar-nav');
+  if (!S.p) return;
+  nav.innerHTML = S.p.topics
+    .filter(t => !filter || t.title.toLowerCase().includes(filter.toLowerCase()) ||
+      t.subtopics.some(s=>s.title.toLowerCase().includes(filter.toLowerCase())))
+    .map(t => `
+      <div class="topic-group">
+        <div class="topic-hd" onclick="toggleSidebarTopic(this,${t.id})">
+          <span class="topic-num">${t.num}</span>
+          ${esc(t.title)}
+          <svg class="chev open" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="sub-list open" id="sl-${t.id}">
+          ${t.subtopics.map(s=>`
+            <div class="sub-item" onclick="scrollToSub(${s.id})">
+              <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--primary)">${s.num}</span>
+              ${esc(s.title)}
+            </div>
+          `).join('')}
+          <div class="sub-item" style="color:var(--light);font-size:11.5px" onclick="openAddSub(${t.id})">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Unterthema
+          </div>
+        </div>
+      </div>
+    `).join('');
+}
+
+function toggleSidebarTopic(el,id) {
+  const list = document.getElementById('sl-'+id);
+  const c = el.querySelector('.chev');
+  list.classList.toggle('open');
+  c.classList.toggle('open');
+}
+
+function filterSidebar(v) { renderSidebar(v); }
+
+function scrollToSub(id) {
+  const el = document.getElementById('sub-'+id);
+  if (el) el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ═══════════════════════════════════════════════════
+//  PROTOCOL AREA
+// ═══════════════════════════════════════════════════
+function renderProtocolArea() {
+  const area = document.getElementById('protocol-area');
+  if (!S.p) return;
+  area.innerHTML = S.p.topics.map(t => `
+    <div class="topic-block" id="topic-${t.id}">
+      <div class="topic-block-hd">
+        <span class="topic-block-num">${t.num}</span>
+        <span class="topic-block-title">${esc(t.title)}</span>
+        <div class="topic-block-acts">
+          <button class="icon-btn" title="Unterthema hinzufügen" onclick="openAddSub(${t.id})">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <button class="icon-btn danger" title="Thema löschen" onclick="deleteTopic(${t.id})">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          </button>
+        </div>
+      </div>
+      <div id="subs-${t.id}">
+        ${t.subtopics.map(s => renderSubtopic(s, t.id)).join('')}
+      </div>
+      <div class="add-sub-row">
+        <button class="add-sub-btn" onclick="openAddSub(${t.id})">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Unterthema hinzufügen
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderSubtopic(s, topicId) {
+  const filtered = filterEntries(s.entries);
+  const statusCls = s.entries.every(e=>e.status==='Erledigt') ? 's-erledigt' :
+    s.entries.some(e=>e.status==='ASAP') ? 's-asap' : 's-offen';
+  const statusLbl = s.entries.every(e=>e.status==='Erledigt') ? 'Erledigt' :
+    s.entries.some(e=>e.status==='ASAP') ? 'ASAP' : 'Offen';
+  return `
+    <div class="sub-block" id="sub-${s.id}">
+      <div class="sub-block-hd">
+        <span class="sub-num">${s.num}</span>
+        <span class="sub-title">${esc(s.title)}</span>
+        <span class="status-badge ${statusCls}">${statusLbl}</span>
+        <div class="sub-acts">
+          <button class="icon-btn-sm" title="Punkt hinzufügen" onclick="openAddEntry(${topicId},${s.id})">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <button class="icon-btn-sm danger" title="Löschen" onclick="deleteSubtopic(${s.id})">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          </button>
+        </div>
+      </div>
+      <table class="et">
+        <thead><tr>
+          <th>Nr.</th><th>Datum</th><th>Beschreibung</th>
+          <th>Typ</th><th>Zuständig</th><th>Status</th><th>Fällig</th><th style="width:58px"></th>
+        </tr></thead>
+        <tbody>
+          ${filtered.length ? filtered.map(e=>renderEntry(e,s.num)).join('') :
+            `<tr><td colspan="8"><div class="empty-entries">Keine Einträge</div></td></tr>`}
+        </tbody>
+      </table>
+      <div class="add-entry-row">
+        <button class="add-entry-btn" onclick="openAddEntry(${topicId},${s.id})">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Eintrag hinzufügen
+        </button>
+      </div>
+    </div>`;
+}
+
+function filterEntries(entries) {
+  if (S.filter === 'alle') return entries;
+  if (S.filter === 'offen') return entries.filter(e=>e.status==='Offen'||e.status==='ASAP');
+  if (S.filter === 'erledigt') return entries.filter(e=>e.status==='Erledigt');
+  if (S.filter === 'neu') return entries.filter(e=>e.is_new);
+  return entries;
+}
+
+function renderEntry(e, subNum) {
+  const typCls = e.typ==='Aufgabe'?'typ-aufgabe':e.typ==='Entscheid'?'typ-entscheid':'typ-info';
+  const stCls = e.status==='Erledigt'?'s-erledigt':e.status==='ASAP'?'s-asap':'s-offen';
+  let faelligHtml = '';
+  if (e.faellig) {
+    const d = new Date(e.faellig), now = new Date();
+    const cls = d<now?'f-over':(d-now<7*86400000)?'f-soon':'f-ok';
+    faelligHtml = `<span class="faellig ${cls}">${fmtDateShort(e.faellig)}</span>`;
+  } else if (e.status==='Erledigt') {
+    faelligHtml = `<span class="status-badge s-erledigt" style="font-size:10px">erledigt</span>`;
+  }
+  const respHtml = e.zustaendig
+    ? `<div class="resp-chip"><div class="resp-av">${initials(e.zustaendig)}</div>${esc(e.zustaendig)}</div>`
+    : `<span style="color:var(--light);font-size:12px">—</span>`;
+
+  return `
+    <tr class="${e.is_new?'entry-new-hl':''}" id="er-${e.id}">
+      <td><span class="entry-nr">${subNum}</span></td>
+      <td><span class="entry-date">${e.datum}</span></td>
+      <td class="entry-desc">${e.is_new?`<strong>${esc(e.beschreibung)}</strong>`:esc(e.beschreibung)}${e.is_new?'<span class="new-pill">NEU</span>':''}</td>
+      <td><span class="typ-badge ${typCls}">${e.typ}</span></td>
+      <td>${respHtml}</td>
+      <td><span class="status-badge ${stCls}">${e.status}</span></td>
+      <td>${faelligHtml}</td>
+      <td>
+        <div class="row-acts">
+          <button class="btn btn-xs btn-outline" onclick="openEditEntry(${e.id})">✎</button>
+          <button class="btn btn-xs btn-danger" onclick="deleteEntry(${e.id})">✕</button>
+        </div>
+      </td>
+    </tr>`;
+}
+
+// ═══════════════════════════════════════════════════
+//  CRUD OPERATIONS
+// ═══════════════════════════════════════════════════
+let _addSubTopicId = null;
+
+function openAddSub(topicId) {
+  _addSubTopicId = topicId;
+  S.isAddingSub = true;
+  document.getElementById('new-topic-title').textContent = 'Neues Unterthema';
+  document.getElementById('nt-sub-group').style.display = 'none';
+  document.getElementById('nt-titel').value = '';
+  openModal('new-topic');
+}
+
+async function addTopicOrSub() {
+  const titel = document.getElementById('nt-titel').value.trim();
+  if (!titel) { toast('Bitte Titel eingeben'); return; }
+  try {
+    if (S.isAddingSub) {
+      await api.post('/topics/'+_addSubTopicId+'/subtopics', { title: titel });
+    } else {
+      await api.post('/protocols/'+S.p.id+'/topics', { title: titel });
+      const sub = document.getElementById('nt-sub').value.trim();
+    }
+    closeModal('new-topic');
+    S.isAddingSub = false;
+    document.getElementById('new-topic-title').textContent = 'Neues Thema';
+    document.getElementById('nt-sub-group').style.display = '';
+    await refreshProtocol();
+    toast('Erfolgreich erstellt ✓');
+  } catch(e) { toast('Fehler: ' + e.message); }
+}
+
+async function deleteTopic(id) {
+  if (!confirm('Thema und alle Unterpunkte löschen?')) return;
+  await api.del('/topics/'+id);
+  await refreshProtocol();
+  toast('Thema gelöscht');
+}
+
+async function deleteSubtopic(id) {
+  if (!confirm('Unterthema und alle Einträge löschen?')) return;
+  await api.del('/subtopics/'+id);
+  await refreshProtocol();
+  toast('Unterthema gelöscht');
+}
+
+function openAddEntry(topicId, subId) {
+  S.pendingTopicId = topicId;
+  S.pendingSubId = subId;
+  // Fill topic dropdown
+  const sel = document.getElementById('ne-topic');
+  sel.innerHTML = '<option value="">-- wählen --</option>' +
+    S.p.topics.map(t=>`<option value="${t.id}" ${t.id===topicId?'selected':''}>${t.num} ${t.title}</option>`).join('');
+  updateSubSelect();
+  openModal('new-entry');
+}
+
+function updateSubSelect() {
+  const topicId = parseInt(document.getElementById('ne-topic').value);
+  const topic = S.p.topics.find(t=>t.id===topicId);
+  const sel = document.getElementById('ne-sub');
+  sel.innerHTML = '<option value="">-- wählen --</option>' +
+    (topic ? topic.subtopics.map(s=>`<option value="${s.id}" ${s.id===S.pendingSubId?'selected':''}>${s.num} ${s.title}</option>`).join('') : '');
+}
+
+async function addEntry() {
+  const subId = parseInt(document.getElementById('ne-sub').value);
+  const desc = document.getElementById('ne-desc').value.trim();
+  if (!subId) { toast('Bitte Unterthema wählen'); return; }
+  if (!desc) { toast('Bitte Beschreibung eingeben'); return; }
+  try {
+    await api.post('/subtopics/'+subId+'/entries', {
+      beschreibung: desc,
+      typ: document.getElementById('ne-typ').value,
+      status: document.getElementById('ne-status').value,
+      zustaendig: document.getElementById('ne-resp').value,
+      faellig: document.getElementById('ne-faellig').value,
+      is_new: 1
+    });
+    closeModal('new-entry');
+    await refreshProtocol();
+    toast('Punkt hinzugefügt ✓');
+    setTimeout(()=>scrollToSub(subId),100);
+  } catch(e) { toast('Fehler: ' + e.message); }
+}
+
+function openEditEntry(id) {
+  const e = findEntry(id);
+  if (!e) return;
+  document.getElementById('ee-id').value = id;
+  document.getElementById('ee-desc').value = e.beschreibung;
+  document.getElementById('ee-typ').value = e.typ;
+  document.getElementById('ee-status').value = e.status;
+  document.getElementById('ee-resp').value = e.zustaendig||'';
+  document.getElementById('ee-faellig').value = e.faellig||'';
+  openModal('edit-entry');
+}
+
+async function saveEditEntry() {
+  const id = document.getElementById('ee-id').value;
+  try {
+    await api.put('/entries/'+id, {
+      beschreibung: document.getElementById('ee-desc').value,
+      typ: document.getElementById('ee-typ').value,
+      status: document.getElementById('ee-status').value,
+      zustaendig: document.getElementById('ee-resp').value,
+      faellig: document.getElementById('ee-faellig').value,
+      is_new: 0
+    });
+    closeModal('edit-entry');
+    await refreshProtocol();
+    toast('Gespeichert ✓');
+  } catch(e) { toast('Fehler: ' + e.message); }
+}
+
+async function deleteEntry(id) {
+  if (!confirm('Diesen Punkt löschen?')) return;
+  await api.del('/entries/'+id);
+  await refreshProtocol();
+  toast('Punkt gelöscht');
+}
+
+function findEntry(id) {
+  for (const t of S.p.topics)
+    for (const s of t.subtopics)
+      for (const e of s.entries)
+        if (e.id === id) return e;
+  return null;
+}
+
+// ═══════════════════════════════════════════════════
+//  RECORDING & KI
+// ═══════════════════════════════════════════════════
+function toggleRecording() {
+  if (S.isRecording) stopRecording();
+  else startRecording();
+}
+
+function startRecording() {
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRec) {
+    toast('Sprachaufnahme nur in Chrome verfügbar. Text manuell eingeben.');
+    return;
+  }
+  S.recognition = new SpeechRec();
+  S.recognition.lang = 'de-DE';
+  S.recognition.continuous = true;
+  S.recognition.interimResults = true;
+  S.finalTranscript = document.getElementById('transcript').value || '';
+
+  S.recognition.onresult = (ev) => {
+    let interim = '';
+    for (let i = ev.resultIndex; i < ev.results.length; i++) {
+      if (ev.results[i].isFinal) S.finalTranscript += ev.results[i][0].transcript + ' ';
+      else interim += ev.results[i][0].transcript;
+    }
+    document.getElementById('transcript').value = S.finalTranscript + interim;
+  };
+
+  S.recognition.onerror = (ev) => {
+    if (ev.error !== 'no-speech') toast('Aufnahme-Fehler: ' + ev.error);
+  };
+
+  S.recognition.onend = () => {
+    if (S.isRecording) S.recognition.start(); // Auto-restart
+  };
+
+  S.recognition.start();
+  S.isRecording = true;
+
+  const btn = document.getElementById('rec-btn');
+  const area = document.getElementById('rec-area');
+  btn.innerHTML = '<span class="rec-dot"></span> Aufnahme stoppen';
+  area.classList.add('active');
+  document.getElementById('rec-status').innerHTML = '<span class="rec-dot"></span> Aufnahme läuft …';
+}
+
+function stopRecording() {
+  if (S.recognition) { S.recognition.stop(); S.recognition = null; }
+  S.isRecording = false;
+  const btn = document.getElementById('rec-btn');
+  if (btn) {
+    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="6" fill="currentColor"/></svg> Aufnahme starten';
+  }
+  const area = document.getElementById('rec-area');
+  if (area) { area.classList.remove('active'); }
+  const rs = document.getElementById('rec-status');
+  if (rs) rs.textContent = 'Aufnahme starten';
+}
+
+function clearTranscript() {
+  S.finalTranscript = '';
+  document.getElementById('transcript').value = '';
+}
+
+async function analyzeTranscript() {
+  const transkript = document.getElementById('transcript').value.trim();
+  if (!transkript) { toast('Kein Transkript vorhanden'); return; }
+  if (!S.p) { toast('Kein Protokoll geöffnet'); return; }
+
+  stopRecording();
+  closeModal('ki-aufnahme');
+  toast('KI analysiert … bitte warten');
+
+  try {
+    const result = await api.post('/ki/strukturieren', { protokoll_id: S.p.id, transkript });
+    S.suggestions = result.suggestions;
+    renderKiReview();
+    openModal('ki-review');
+  } catch(e) {
+    toast('Fehler: ' + e.message);
+  }
+}
+
+function renderKiReview() {
+  const list = document.getElementById('ki-list');
+  list.innerHTML = S.suggestions.map((s,i) => `
+    <div class="ki-suggestion-card accepted" id="ki-card-${i}">
+      <div class="ki-card-head">
+        <span class="ki-topic-path">${esc(s.thema)} › ${esc(s.unterthema)}</span>
+        <span class="typ-badge ${s.typ==='Aufgabe'?'typ-aufgabe':s.typ==='Entscheid'?'typ-entscheid':'typ-info'}">${s.typ}</span>
+        ${s.ist_neues_thema||s.ist_neues_unterthema ? '<span class="new-pill">NEUES THEMA</span>' : ''}
+      </div>
+      <div class="form-group">
+        <label class="form-label">Beschreibung</label>
+        <textarea class="form-textarea" id="ki-desc-${i}" style="min-height:60px">${esc(s.beschreibung)}</textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Zuständig</label>
+          <input class="form-input" id="ki-resp-${i}" value="${esc(s.zustaendig||'')}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fällig</label>
+          <input class="form-input" type="date" id="ki-faellig-${i}" value="${s.faellig||''}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-select" id="ki-status-${i}">
+            ${['Offen','Erledigt','ASAP'].map(v=>`<option ${v===s.status?'selected':''}>${v}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="ki-card-actions">
+        <button class="btn btn-danger btn-sm" onclick="toggleSuggestion(${i},false)">✕ Ablehnen</button>
+        <button class="btn btn-success btn-sm" onclick="toggleSuggestion(${i},true)">✓ Übernehmen</button>
+      </div>
+    </div>
+  `).join('');
+  updateKiProgress();
+}
+
+function toggleSuggestion(i, accept) {
+  const card = document.getElementById('ki-card-'+i);
+  card.classList.remove('accepted','rejected');
+  card.classList.add(accept?'accepted':'rejected');
+  updateKiProgress();
+}
+
+function selectAllSuggestions(accept) {
+  S.suggestions.forEach((_,i)=>toggleSuggestion(i,accept));
+}
+
+function updateKiProgress() {
+  const total = S.suggestions.length;
+  const accepted = document.querySelectorAll('.ki-suggestion-card.accepted').length;
+  document.getElementById('ki-progress').innerHTML = `<strong>${accepted}</strong> von ${total} ausgewählt`;
+}
+
+async function acceptSuggestions() {
+  const accepted = S.suggestions
+    .filter((_,i) => document.getElementById('ki-card-'+i)?.classList.contains('accepted'))
+    .map((s,i) => {
+      const idx = S.suggestions.indexOf(s);
+      return {
+        ...s,
+        beschreibung: document.getElementById('ki-desc-'+idx)?.value || s.beschreibung,
+        zustaendig: document.getElementById('ki-resp-'+idx)?.value || s.zustaendig,
+        faellig: document.getElementById('ki-faellig-'+idx)?.value || s.faellig,
+        status: document.getElementById('ki-status-'+idx)?.value || s.status
+      };
+    });
+
+  if (!accepted.length) { toast('Keine Punkte ausgewählt'); return; }
+
+  try {
+    S.p = await api.post('/ki/uebernehmen', { protokoll_id: S.p.id, accepted });
+    closeModal('ki-review');
+    renderMeta();
+    renderSidebar();
+    renderProtocolArea();
+    toast(`${accepted.length} Punkt${accepted.length>1?'e':''} übernommen ✓`);
+  } catch(e) { toast('Fehler: ' + e.message); }
+}
+
+// ═══════════════════════════════════════════════════
+//  DECKBLATT
+// ═══════════════════════════════════════════════════
+function renderDeckblatt() {
+  const p = S.p;
+  S.dbData = {
+    participants: JSON.parse(JSON.stringify(p.participants||[])),
+    verteiler: JSON.parse(JSON.stringify(p.verteiler||[])),
+    anlagen: JSON.parse(JSON.stringify(p.anlagen||[]))
+  };
+  S.dbDirty = false;
+
+  document.getElementById('db-area').innerHTML = `
+    <div class="db-paper">
+      <div class="db-stripe"></div>
+      <div class="db-inner">
+        <div class="db-title-row">
+          <div>
+            <div class="db-fi"><span class="db-fl">Bauherr:</span><input class="db-ed" id="db-bauherr" value="${esc(p.bauherr||'')}" oninput="markDbDirty()"></div>
+            <div class="db-fi"><span class="db-fl">Bauvorhaben:</span><input class="db-ed" id="db-bauvorhaben" value="${esc(p.bauvorhaben||'')}" style="min-width:220px" oninput="markDbDirty()"></div>
+            <div class="db-ph">Protokoll ${esc(p.protokoll_typ||'Projekt-Jour-Fixe')} Nr.&nbsp;
+              <input class="db-ed" id="db-nr" value="${esc(p.protokoll_nr||'')}" style="min-width:40px;width:50px;text-align:center" oninput="markDbDirty()">
+              &nbsp;vom&nbsp;
+              <input class="db-ed" id="db-datum" value="${esc(p.datum||'')}" style="min-width:90px;width:100px" oninput="markDbDirty()">
+            </div>
+          </div>
+          <div class="db-logo" title="Logo hochladen">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            &nbsp;Logo
+          </div>
+        </div>
+        <div class="db-main-grid">
+          <div>
+            <div class="db-sec-title">Teilnehmer</div>
+            <table class="db-pt"><thead><tr><th>Name</th><th style="width:55px">Kürzel</th><th style="width:26px"></th></tr></thead>
+            <tbody id="db-tn"></tbody></table>
+            <button class="db-add" onclick="dbAddPerson('participants')">+ Person hinzufügen</button>
+          </div>
+          <div>
+            <div class="db-sec-title">Verteiler wie Teilnehmer</div>
+            <table class="db-pt"><thead><tr><th>Name</th><th style="width:55px">Kürzel</th><th style="width:26px"></th></tr></thead>
+            <tbody id="db-vt"></tbody></table>
+            <button class="db-add" onclick="dbAddPerson('verteiler')">+ Person hinzufügen</button>
+          </div>
+          <div class="db-meta-col">
+            <div class="db-mf"><span class="db-ml">Ort</span><input class="db-mi" id="db-ort" value="${esc(p.ort||'')}" oninput="markDbDirty()"></div>
+            <div class="db-mf"><span class="db-ml">Zeit</span><input class="db-mi" id="db-zeit" value="${esc(p.zeit||'')}" oninput="markDbDirty()"></div>
+            <div class="db-mf"><span class="db-ml">Verfasser</span><input class="db-mi" id="db-verfasser" value="${esc(p.verfasser||'')}" oninput="markDbDirty()"></div>
+            <div class="db-mf"><span class="db-ml">Telefon / E-Mail</span><input class="db-mi" id="db-kontakt" value="${esc(p.kontakt||'')}" oninput="markDbDirty()"></div>
+          </div>
+        </div>
+        <div class="db-anl-sec">
+          <div class="db-sec-title" style="margin-bottom:8px">Anlagen</div>
+          <div id="db-anlagen"></div>
+          <button class="db-add" style="margin-top:5px" onclick="dbAddAnlage()">+ Anlage hinzufügen</button>
+        </div>
+        <div class="db-vf-row">
+          <div class="db-vff"><span class="db-vfl">Erstellt von</span><input class="db-vfi" value="${esc(p.verfasser||'')}"></div>
+          <div class="db-vff"><span class="db-vfl">Verteilt am</span><input class="db-vfi" placeholder="TT.MM.JJJJ"></div>
+        </div>
+      </div>
+      <div class="db-save-bar">
+        <div class="db-dirty" id="db-dirty" style="opacity:0"><div class="db-dirty-dot"></div>Ungespeicherte Änderungen</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline btn-sm" onclick="renderDeckblatt()">Zurücksetzen</button>
+          <button class="btn btn-primary btn-sm" onclick="saveDbDeckblatt()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            Deckblatt speichern
+          </button>
+        </div>
+      </div>
+    </div>`;
+  dbRenderPersons('participants');
+  dbRenderPersons('verteiler');
+  dbRenderAnlagen();
+}
+
+function markDbDirty() {
+  S.dbDirty = true;
+  const h = document.getElementById('db-dirty');
+  if (h) h.style.opacity = '1';
+}
+
+function dbRenderPersons(type) {
+  const tbody = document.getElementById(type==='participants'?'db-tn':'db-vt');
+  if (!tbody) return;
+  const list = S.dbData[type];
+  tbody.innerHTML = list.map((p,i) => `
+    <tr>
+      <td><input class="db-ci" value="${esc(p.name||'')}" oninput="S.dbData['${type}'][${i}].name=this.value;markDbDirty()"></td>
+      <td><input class="db-ci db-ri" value="${esc(p.kuerzel||'')}" oninput="S.dbData['${type}'][${i}].kuerzel=this.value;markDbDirty()"></td>
+      <td><button class="db-del" onclick="dbDelPerson('${type}',${i})">✕</button></td>
+    </tr>`).join('');
+}
+
+function dbAddPerson(type) {
+  S.dbData[type].push({name:'',kuerzel:''});
+  dbRenderPersons(type); markDbDirty();
+  const tb = document.getElementById(type==='participants'?'db-tn':'db-vt');
+  const last = tb?.querySelector('tr:last-child input');
+  if (last) last.focus();
+}
+
+function dbDelPerson(type, idx) {
+  S.dbData[type].splice(idx,1);
+  dbRenderPersons(type); markDbDirty();
+}
+
+function dbRenderAnlagen() {
+  const c = document.getElementById('db-anlagen');
+  if (!c) return;
+  c.innerHTML = S.dbData.anlagen.map((a,i) => `
+    <div class="db-anl-row">
+      <div class="db-anl-bul"></div>
+      <input class="db-anl-in" value="${esc(typeof a==='string'?a:a.titel||'')}" oninput="S.dbData.anlagen[${i}]={titel:this.value};markDbDirty()">
+      <button class="db-del" onclick="dbDelAnlage(${i})">✕</button>
+    </div>`).join('');
+}
+
+function dbAddAnlage() {
+  S.dbData.anlagen.push({titel:''});
+  dbRenderAnlagen(); markDbDirty();
+  document.querySelectorAll('.db-anl-in').forEach((el,i,arr)=>{ if(i===arr.length-1) el.focus(); });
+}
+
+function dbDelAnlage(idx) {
+  S.dbData.anlagen.splice(idx,1);
+  dbRenderAnlagen(); markDbDirty();
+}
+
+async function saveDbDeckblatt() {
+  try {
+    await api.put('/protocols/'+S.p.id, {
+      bauherr: document.getElementById('db-bauherr').value,
+      bauvorhaben: document.getElementById('db-bauvorhaben').value,
+      datum: document.getElementById('db-datum').value,
+      ort: document.getElementById('db-ort').value,
+      zeit: document.getElementById('db-zeit').value,
+      verfasser: document.getElementById('db-verfasser').value,
+      kontakt: document.getElementById('db-kontakt').value,
+      protokoll_nr: document.getElementById('db-nr').value,
+      protokoll_typ: S.p.protokoll_typ
+    });
+    await api.put('/protocols/'+S.p.id+'/participants', {
+      participants: S.dbData.participants,
+      verteiler: S.dbData.verteiler
+    });
+    await api.put('/protocols/'+S.p.id+'/anlagen', { anlagen: S.dbData.anlagen });
+    S.p = await api.get('/protocols/'+S.p.id);
+    S.dbDirty = false;
+    const h = document.getElementById('db-dirty');
+    if (h) h.style.opacity='0';
+    renderMeta();
+    toast('Deckblatt gespeichert ✓');
+  } catch(e) { toast('Fehler: ' + e.message); }
+}
+
+// ═══════════════════════════════════════════════════
+//  AUFGABEN
+// ═══════════════════════════════════════════════════
+function renderAufgaben() {
+  const allEntries = [];
+  if (!S.p) return;
+  for (const t of S.p.topics)
+    for (const s of t.subtopics)
+      for (const e of s.entries)
+        if (e.status !== 'Erledigt' && e.typ === 'Aufgabe')
+          allEntries.push({...e, topicTitle: t.title, subTitle: s.title, subNum: s.num});
+
+  const area = document.getElementById('aufgaben-area');
+  area.innerHTML = `
+    <div style="max-width:860px;margin:0 auto;padding:8px 0">
+      <table class="aufgaben-table">
+        <thead><tr><th>Nr.</th><th>Thema</th><th>Beschreibung</th><th>Zuständig</th><th>Status</th><th>Fällig</th></tr></thead>
+        <tbody>
+          ${allEntries.length ? allEntries.map(e => {
+            let fHtml = '';
+            if (e.faellig) {
+              const d = new Date(e.faellig), now = new Date();
+              const cls = d<now?'f-over':(d-now<7*86400000)?'f-soon':'f-ok';
+              fHtml = `<span class="faellig ${cls}">${fmtDateShort(e.faellig)}</span>`;
+            }
+            const stCls = e.status==='ASAP'?'s-asap':'s-offen';
+            return `<tr>
+              <td><span class="entry-nr">${e.subNum}</span></td>
+              <td style="font-size:12px;color:var(--muted)">${esc(e.topicTitle)} › ${esc(e.subTitle)}</td>
+              <td class="entry-desc">${esc(e.beschreibung)}</td>
+              <td>${e.zustaendig?`<div class="resp-chip"><div class="resp-av">${initials(e.zustaendig)}</div>${esc(e.zustaendig)}</div>`:'—'}</td>
+              <td><span class="status-badge ${stCls}">${e.status}</span></td>
+              <td>${fHtml}</td>
+            </tr>`;
+          }).join('') : `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--muted)">Keine offenen Aufgaben 🎉</td></tr>`}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════
+//  PDF PRINT  (eigenes Fenster, Layout wie Referenzbild)
+// ═══════════════════════════════════════════════════
+function printProtocol() {
+  if (!S.p) return;
+  const p = S.p;
+
+  // Lokale Hilfsfunktionen (im neuen Fenster nicht verfügbar)
+  function x(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function fd(iso) {
+    if (!iso) return '';
+    const [y,m,d] = iso.split('-');
+    return `${d}.${m}.${y.slice(2)}`;
+  }
+
+  // ── Haupttabellen-Zeilen ────────────────────────
+  let tableRows = '';
+  for (const t of p.topics) {
+    tableRows += `<tr class="tr-topic">
+      <td class="td-num">${x(t.num)}</td>
+      <td colspan="3" class="td-topic-title">${x(t.title)}</td>
+    </tr>`;
+    for (const s of t.subtopics) {
+      tableRows += `<tr class="tr-sub">
+        <td class="td-num">01&nbsp;|&nbsp;${x(s.num)}</td>
+        <td colspan="3" class="td-sub-title">${x(s.title)}</td>
+      </tr>`;
+      if (!s.entries.length) {
+        tableRows += `<tr class="tr-entry"><td class="td-date"></td><td colspan="3" style="color:#aaa;font-style:italic;padding:3pt 6pt">—</td></tr>`;
+      }
+      for (const e of s.entries) {
+        const termin = e.faellig ? fd(e.faellig)
+                     : e.status==='Erledigt' ? 'erledigt'
+                     : e.status==='ASAP' ? 'ASAP' : '';
+        tableRows += `<tr class="tr-entry${e.is_new?' tr-new':''}">
+          <td class="td-date">${x(e.datum)}</td>
+          <td class="td-desc">${x(e.beschreibung)}</td>
+          <td class="td-resp">${x(e.zustaendig||'')}</td>
+          <td class="td-termin${e.status==='ASAP'?' td-asap':''}">${x(termin)}</td>
+        </tr>`;
+      }
+    }
+  }
+
+  // ── Anlagen ────────────────────────────────────
+  const anlHtml = (p.anlagen||[])
+    .map(a => `<li>${x(typeof a==='string' ? a : a.titel||'')}</li>`)
+    .join('');
+
+  // ── Komplettes HTML-Dokument ────────────────────
+  const html = `<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Protokoll ${x(p.protokoll_nr||p.titel)}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,Helvetica,sans-serif;font-size:9pt;color:#1a1a1a;background:#fff}
+.pg{padding:12mm 16mm 16mm}
+
+/* ─── KOPFZEILEN ─── */
+.hd-line{font-size:9pt;margin-bottom:1.5mm}
+.hd-line b{border-bottom:0.5pt solid #555;display:inline-block;min-width:62mm;padding-bottom:.3mm}
+.hd-title{font-size:11pt;font-weight:bold;margin:3.5mm 0 5mm;color:#000}
+.hd-title .gold{color:#C8A84B}
+
+/* ─── INFO-LEISTE (Teilnehmer / Verteiler / Meta) ─── */
+.info-table{width:100%;border-collapse:collapse;margin-bottom:4mm}
+.info-table td{vertical-align:top;padding:0}
+.info-sec-title{font-size:8pt;font-weight:bold;text-decoration:underline;margin-bottom:2mm;color:#002E4D}
+.plist{border-collapse:collapse;font-size:8.5pt}
+.plist td{padding:.5mm 1mm;vertical-align:top}
+.plist .kz{min-width:13mm;color:#555;padding-left:4mm;font-style:italic}
+.metalist{font-size:8.5pt;line-height:1.75}
+.metalist .ml{font-weight:bold;color:#002E4D;font-size:8pt}
+.metalist .mv{color:#C8A84B;font-weight:bold}
+
+/* ─── ANLAGEN ─── */
+.anl-wrap{margin:1mm 0 4mm}
+.anl-title{font-size:8.5pt;font-weight:bold;color:#C8A84B;text-decoration:underline;margin-bottom:1.5mm}
+.anl-list{padding-left:5mm;font-size:8.5pt;line-height:1.6}
+
+/* ─── TRENNLINIE ─── */
+hr{border:none;border-top:1.5pt solid #002E4D;margin:3mm 0 4mm}
+
+/* ─── HAUPTTABELLE ─── */
+.pt{width:100%;border-collapse:collapse;font-size:8.5pt}
+
+/* Tabellenkopf */
+.pt thead th{
+  background:#002E4D;
+  color:#fff;
+  font-size:8.5pt;
+  font-weight:bold;
+  padding:4pt 6pt;
+  text-align:left;
+  border:0.5pt solid #001530;
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact
+}
+.th-num{width:56pt}
+.th-resp{width:62pt}
+.th-termin{width:44pt;text-align:center}
+
+/* Oberthema-Zeile */
+.tr-topic td{
+  background:#002E4D;
+  color:#fff;
+  font-weight:bold;
+  font-size:10pt;
+  padding:4pt 6pt;
+  border:0.5pt solid #001530;
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact
+}
+.tr-topic .td-num{text-align:center}
+
+/* Unterthema-Zeile */
+.tr-sub td{
+  background:#4a5568;
+  color:#fff;
+  font-weight:bold;
+  font-size:8.5pt;
+  padding:3pt 6pt;
+  border:0.5pt solid #364152;
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact
+}
+.tr-sub .td-num{font-family:monospace;white-space:nowrap;text-align:center;font-size:7.5pt}
+
+/* Eintragszeilen */
+.tr-entry td{
+  padding:2.5pt 6pt;
+  border:0.5pt solid #dde2e8;
+  vertical-align:top;
+  line-height:1.4
+}
+.tr-entry:nth-child(odd) td{
+  background:#f6f8fa;
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact
+}
+/* Neue Einträge: weißer Hintergrund + fett */
+.tr-new td{background:#fff!important}
+.tr-new .td-desc{font-weight:bold}
+
+/* Spalten */
+.td-num{text-align:center;white-space:nowrap}
+.td-date{color:#555;font-size:7.5pt;white-space:nowrap;width:44pt}
+.td-resp{font-size:8pt;white-space:nowrap}
+.td-termin{text-align:center;font-size:8pt;white-space:nowrap}
+.td-asap{color:#b86e00;font-weight:bold}
+
+@page{size:A4;margin:0}
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head>
+<body>
+<div class="pg">
+
+  <!-- Kopf -->
+  <div class="hd-line">Bauherr:&nbsp;<b>${x(p.bauherr||'')}</b></div>
+  <div class="hd-line">Bauvorhaben:&nbsp;<b>${x(p.bauvorhaben||'')}</b></div>
+  <div class="hd-title">
+    Protokoll&nbsp;${x(p.protokoll_typ||'Projekt-Jour-Fixe')}&nbsp;Nr.&nbsp;<span class="gold">${x(p.protokoll_nr||'')}</span>&nbsp;vom&nbsp;<span class="gold">${x(p.datum||'')}</span>
+  </div>
+
+  <!-- Teilnehmer / Verteiler / Meta -->
+  <table class="info-table">
+    <tr>
+      <td style="width:37%;padding-right:6mm">
+        <div class="info-sec-title">Teilnehmer</div>
+        <table class="plist">
+          ${(p.participants||[]).map(t=>`<tr><td>${x(t.name)}</td><td class="kz">${x(t.kuerzel)}</td></tr>`).join('')}
+        </table>
+      </td>
+      <td style="width:33%;padding-right:6mm">
+        <div class="info-sec-title">Verteiler wie Teilnehmer</div>
+        <table class="plist">
+          ${(p.verteiler||[]).map(v=>`<tr><td>${x(v.name)}</td><td class="kz">${x(v.kuerzel)}</td></tr>`).join('')}
+        </table>
+      </td>
+      <td style="width:30%">
+        <div class="metalist">
+          <div class="ml">Ort:</div>
+          <div class="mv">${x(p.ort||'')}</div>
+          <div class="ml" style="margin-top:1.5mm">Zeit:</div>
+          <div class="mv">${x(p.zeit||'')}</div>
+          <div class="ml" style="margin-top:1.5mm">Verfasser:</div>
+          <div>${x(p.verfasser||'')}</div>
+          <div class="ml" style="margin-top:1.5mm">Telefon/E-Mail:</div>
+          <div>${x(p.kontakt||'')}</div>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Anlagen -->
+  ${anlHtml ? `<div class="anl-wrap">
+    <div class="anl-title">Anlagen:</div>
+    <ul class="anl-list">${anlHtml}</ul>
+  </div>` : ''}
+
+  <hr>
+
+  <!-- Haupttabelle -->
+  <table class="pt">
+    <thead>
+      <tr>
+        <th class="th-num">Nr.</th>
+        <th>Thema / Beschreibung</th>
+        <th class="th-resp">Zuständig</th>
+        <th class="th-termin">Termin</th>
+      </tr>
+    </thead>
+    <tbody>${tableRows}</tbody>
+  </table>
+
+</div>
+</body>
+</html>`;
+
+  // In neuem Fenster öffnen und drucken
+  const win = window.open('', '_blank', 'width=920,height=760');
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  // Kurz warten bis Fonts/Styles geladen
+  setTimeout(() => win.print(), 700);
+}
+
+// ═══════════════════════════════════════════════════
+//  FILTER
+// ═══════════════════════════════════════════════════
+function setFilter(f, el) {
+  S.filter = f;
+  document.querySelectorAll('.filter-pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  renderProtocolArea();
+}
+
+// ═══════════════════════════════════════════════════
+//  MODALS
+// ═══════════════════════════════════════════════════
+function openModal(name) {
+  document.getElementById('modal-'+name)?.classList.add('open');
+}
+function closeModal(name) {
+  document.getElementById('modal-'+name)?.classList.remove('open');
+}
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target===el) el.classList.remove('open'); });
+});
+
+// ═══════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════
+let _toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ═══════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════
+async function refreshProtocol() {
+  S.p = await api.get('/protocols/'+S.p.id);
+  renderMeta();
+  renderSidebar();
+  renderProtocolArea();
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function initials(name) {
+  return (name||'?').split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+}
+
+function formatDateDE(isoDate) {
+  if (!isoDate) return '';
+  const [y,m,d] = isoDate.split('-');
+  return `${d}.${m}.${y}`;
+}
+
+function fmtDateShort(isoDate) {
+  if (!isoDate) return '';
+  const [y,m,d] = isoDate.split('-');
+  return `${d}.${m}.${y.slice(2)}`;
+}
+
+// ═══════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════
+showList();
+</script>
+</body>
+</html>
