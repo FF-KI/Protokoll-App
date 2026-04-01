@@ -118,7 +118,7 @@ function seedData() {
   const s11 = aS.run(t1,'1.1','Besprechungstermine',1).lastInsertRowid;
   aE.run(s11,'13.04.25','Protokoll Nr. 03 wurde verteilt und freigegeben.','Info','Hr. Hans','Erledigt','',0);
   aE.run(s11,'28.04.25','Nächster Termin ist noch nicht bestätigt.','Aufgabe','Hr. Meier','Offen','2025-05-10',0);
-  aE.run(s11,'05.05.25','Jour Fixe findet ab sofort alle 14 Tage statt.','Entscheid','','Offen','',1);
+  aE.run(s11,'05.05.25','Jour Fixe findet ab sofort alle 14 Tage statt.','Entscheidung','','Offen','',1);
 
   const s12 = aS.run(t1,'1.2','Projektbeteiligte',2).lastInsertRowid;
   aE.run(s12,'28.04.25','Projektbeteiligtenliste wurde noch nicht aktualisiert.','Aufgabe','Hr. Meier','Offen','2025-05-10',0);
@@ -324,7 +324,7 @@ Erstelle JSON-Array. Format jedes Eintrags:
   "unterthema": "Unterthema-Titel",
   "unterthema_num": "Nummer z.B. '1.1' oder 'NEU'",
   "beschreibung": "Professionell ausformulierter Protokolltext, vollständig und klar",
-  "typ": "Aufgabe|Info|Entscheid",
+  "typ": "Aufgabe|Info|Entscheidung",
   "zustaendig": "Name der Person oder leer",
   "status": "Offen|Erledigt|ASAP",
   "faellig": "YYYY-MM-DD oder leer",
@@ -334,7 +334,7 @@ Erstelle JSON-Array. Format jedes Eintrags:
 
 Regeln:
 - Ordne Punkten ZUERST bestehenden Themen zu (exakter Titel-Match priorisieren)
-- Typ 'Aufgabe': etwas muss getan werden | 'Info': reine Information | 'Entscheid': Entscheidung gefallen
+- Typ 'Aufgabe': etwas muss getan werden | 'Info': reine Information | 'Entscheidung': Entscheidung gefallen
 - Formuliere jeden Punkt vollständig und eigenständig verständlich
 - Erkenne Fälligkeitsdaten und Zuständigkeiten aus dem Kontext`;
 
