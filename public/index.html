@@ -584,7 +584,7 @@ tr:hover .row-acts{opacity:1}
       </div>
       <div class="form-group"><label class="form-label">Beschreibung*</label><textarea class="form-textarea" id="ne-desc" placeholder="Beschreibung des Protokollpunkts …"></textarea></div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Typ</label><select class="form-select" id="ne-typ"><option>Aufgabe</option><option>Info</option><option>Entscheid</option></select></div>
+        <div class="form-group"><label class="form-label">Typ</label><select class="form-select" id="ne-typ"><option>Aufgabe</option><option>Info</option><option>Entscheidung</option></select></div>
         <div class="form-group"><label class="form-label">Status</label><select class="form-select" id="ne-status"><option>Offen</option><option>Erledigt</option><option>ASAP</option></select></div>
       </div>
       <div class="form-row">
@@ -666,7 +666,7 @@ tr:hover .row-acts{opacity:1}
       <input type="hidden" id="ee-id">
       <div class="form-group"><label class="form-label">Beschreibung</label><textarea class="form-textarea" id="ee-desc"></textarea></div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Typ</label><select class="form-select" id="ee-typ"><option>Aufgabe</option><option>Info</option><option>Entscheid</option></select></div>
+        <div class="form-group"><label class="form-label">Typ</label><select class="form-select" id="ee-typ"><option>Aufgabe</option><option>Info</option><option>Entscheidung</option></select></div>
         <div class="form-group"><label class="form-label">Status</label><select class="form-select" id="ee-status"><option>Offen</option><option>Erledigt</option><option>ASAP</option></select></div>
       </div>
       <div class="form-row">
@@ -1004,19 +1004,25 @@ function filterEntries(entries) {
 }
 
 function renderEntry(e, subNum) {
-  const typCls = e.typ==='Aufgabe'?'typ-aufgabe':e.typ==='Entscheid'?'typ-entscheid':'typ-info';
+  const typCls = e.typ==='Aufgabe'?'typ-aufgabe':e.typ==='Entscheidung'?'typ-entscheid':'typ-info';
+  const isAufgabe = e.typ==='Aufgabe';
   const stCls = e.status==='Erledigt'?'s-erledigt':e.status==='ASAP'?'s-asap':'s-offen';
   let faelligHtml = '';
-  if (e.faellig) {
-    const d = new Date(e.faellig), now = new Date();
-    const cls = d<now?'f-over':(d-now<7*86400000)?'f-soon':'f-ok';
-    faelligHtml = `<span class="faellig ${cls}">${fmtDateShort(e.faellig)}</span>`;
-  } else if (e.status==='Erledigt') {
-    faelligHtml = `<span class="status-badge s-erledigt" style="font-size:10px">erledigt</span>`;
+  if (isAufgabe) {
+    if (e.faellig) {
+      const d = new Date(e.faellig), now = new Date();
+      const cls = d<now?'f-over':(d-now<7*86400000)?'f-soon':'f-ok';
+      faelligHtml = `<span class="faellig ${cls}">${fmtDateShort(e.faellig)}</span>`;
+    } else if (e.status==='Erledigt') {
+      faelligHtml = `<span class="status-badge s-erledigt" style="font-size:10px">erledigt</span>`;
+    }
   }
-  const respHtml = e.zustaendig
-    ? `<div class="resp-chip"><div class="resp-av">${initials(e.zustaendig)}</div>${esc(e.zustaendig)}</div>`
-    : `<span style="color:var(--light);font-size:12px">—</span>`;
+  const respHtml = isAufgabe
+    ? (e.zustaendig
+      ? `<div class="resp-chip"><div class="resp-av">${initials(e.zustaendig)}</div>${esc(e.zustaendig)}</div>`
+      : `<span style="color:var(--light);font-size:12px">—</span>`)
+    : '';
+  const statusHtml = isAufgabe ? `<span class="status-badge ${stCls}">${e.status}</span>` : '';
 
   return `
     <tr class="${e.is_new?'entry-new-hl':''}" id="er-${e.id}">
@@ -1025,7 +1031,7 @@ function renderEntry(e, subNum) {
       <td class="entry-desc">${e.is_new?`<strong>${esc(e.beschreibung)}</strong>`:esc(e.beschreibung)}${e.is_new?'<span class="new-pill">NEU</span>':''}</td>
       <td><span class="typ-badge ${typCls}">${e.typ}</span></td>
       <td>${respHtml}</td>
-      <td><span class="status-badge ${stCls}">${e.status}</span></td>
+      <td>${statusHtml}</td>
       <td>${faelligHtml}</td>
       <td>
         <div class="row-acts">
@@ -1255,7 +1261,7 @@ function renderKiReview() {
     <div class="ki-suggestion-card accepted" id="ki-card-${i}">
       <div class="ki-card-head">
         <span class="ki-topic-path">${esc(s.thema)} › ${esc(s.unterthema)}</span>
-        <span class="typ-badge ${s.typ==='Aufgabe'?'typ-aufgabe':s.typ==='Entscheid'?'typ-entscheid':'typ-info'}">${s.typ}</span>
+        <span class="typ-badge ${s.typ==='Aufgabe'?'typ-aufgabe':s.typ==='Entscheidung'?'typ-entscheid':'typ-info'}">${s.typ}</span>
         ${s.ist_neues_thema||s.ist_neues_unterthema ? '<span class="new-pill">NEUES THEMA</span>' : ''}
       </div>
       <div class="form-group">
@@ -1542,7 +1548,7 @@ function printProtocol() {
   function fd(iso) {
     if (!iso) return '';
     const [y,m,d] = iso.split('-');
-    return `${d}.${m}.${y.slice(2)}`;
+    return `${d}.${m}.${y}`;
   }
 
   let tableRows = '';
@@ -1561,14 +1567,15 @@ function printProtocol() {
       }
       for (let ei=0; ei<s.entries.length; ei++) {
         const e = s.entries[ei];
-        const termin = e.faellig ? fd(e.faellig)
+        const isAufgabe = e.typ==='Aufgabe';
+        const termin = isAufgabe ? (e.faellig ? fd(e.faellig)
                      : e.status==='Erledigt' ? 'erledigt'
-                     : e.status==='ASAP' ? 'ASAP' : '';
+                     : e.status==='ASAP' ? 'ASAP' : '') : '';
         tableRows += `<tr class="tr-entry${e.is_new?' tr-new':''}">
           <td class="td-date">${x(s.num)}.${ei+1}&nbsp;&nbsp;${x(e.datum)}</td>
           <td class="td-desc">${x(e.beschreibung)}</td>
-          <td class="td-resp">${x(e.zustaendig||'')}</td>
-          <td class="td-termin${e.status==='ASAP'?' td-asap':''}">${x(termin)}</td>
+          <td class="td-resp">${isAufgabe ? x(e.zustaendig||'') : ''}</td>
+          <td class="td-termin${e.status==='ASAP'&&isAufgabe?' td-asap':''}">${x(termin)}</td>
         </tr>`;
       }
     }
@@ -1759,7 +1766,7 @@ function formatDateDE(isoDate) {
 function fmtDateShort(isoDate) {
   if (!isoDate) return '';
   const [y,m,d] = isoDate.split('-');
-  return `${d}.${m}.${y.slice(2)}`;
+  return `${d}.${m}.${y}`;
 }
 
 // ═══════════════════════════════════════════════════
