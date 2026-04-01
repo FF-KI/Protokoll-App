@@ -180,11 +180,33 @@ app.get('/api/protocols', (_req, res) => {
 });
 
 app.post('/api/protocols', (req, res) => {
-  const { titel, bauherr='', bauvorhaben='', datum='', ort='', zeit='', verfasser='', kontakt='', protokoll_nr='', protokoll_typ='Projekt-Jour-Fixe' } = req.body;
+  const { titel, bauherr='', bauvorhaben='', datum='', ort='', zeit='', verfasser='', kontakt='', protokoll_nr='', protokoll_typ='Projekt-Jour-Fixe', copy_from_last=false } = req.body;
   if (!titel) return res.status(400).json({ error: 'Titel fehlt' });
   const r = db.prepare(`INSERT INTO protocols (titel,bauherr,bauvorhaben,datum,ort,zeit,verfasser,kontakt,protokoll_nr,protokoll_typ) VALUES (?,?,?,?,?,?,?,?,?,?)`)
     .run(titel,bauherr,bauvorhaben,datum,ort,zeit,verfasser,kontakt,protokoll_nr,protokoll_typ);
-  res.json(getFullProtocol(r.lastInsertRowid));
+  const newId = r.lastInsertRowid;
+
+  // Copy topics, subtopics, and entries from the most recent previous protocol
+  if (copy_from_last) {
+    const lastProto = db.prepare('SELECT id FROM protocols WHERE id != ? ORDER BY created_at DESC LIMIT 1').get(newId);
+    if (lastProto) {
+      const source = getFullProtocol(lastProto.id);
+      const addTopic = db.prepare('INSERT INTO topics (protocol_id,num,title,sort_order) VALUES (?,?,?,?)');
+      const addSub   = db.prepare('INSERT INTO subtopics (topic_id,num,title,sort_order) VALUES (?,?,?,?)');
+      const addEntry = db.prepare('INSERT INTO entries (subtopic_id,datum,beschreibung,typ,zustaendig,status,faellig,is_new) VALUES (?,?,?,?,?,?,?,0)');
+      for (const t of source.topics) {
+        const newTid = addTopic.run(newId, t.num, t.title, t.sort_order).lastInsertRowid;
+        for (const s of t.subtopics) {
+          const newSid = addSub.run(newTid, s.num, s.title, s.sort_order).lastInsertRowid;
+          for (const e of s.entries) {
+            addEntry.run(newSid, e.datum, e.beschreibung, e.typ, e.zustaendig, e.status, e.faellig);
+          }
+        }
+      }
+    }
+  }
+
+  res.json(getFullProtocol(newId));
 });
 
 app.get('/api/protocols/:id', (req, res) => {
