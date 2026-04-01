@@ -431,10 +431,10 @@ tr:hover .row-acts{opacity:1}
   <div class="list-page" style="padding-top:calc(var(--hh) + 32px)">
     <div class="list-page-header">
       <div>
-        <div class="list-page-title">Bau-Protokolle</div>
-        <div class="list-page-sub">Alle Baubesprechungsprotokoll auf einen Blick</div>
+        <div class="list-page-title">Bauherren JF</div>
+        <div class="list-page-sub">Alle Bauherren Jour-Fixe Protokolle auf einen Blick</div>
       </div>
-      <button class="btn btn-primary" onclick="openModal('new-proto')">
+      <button class="btn btn-primary" onclick="prepareNewProtoModal()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Neues Protokoll
       </button>
@@ -535,12 +535,11 @@ tr:hover .row-acts{opacity:1}
     <div class="modal-hd"><div class="modal-title">Neues Protokoll anlegen</div><button class="modal-close" onclick="closeModal('new-proto')">×</button></div>
     <div class="modal-body">
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Protokoll-Titel*</label><input class="form-input" id="np-titel" placeholder="z.B. BH-JF 06"></div>
-        <div class="form-group"><label class="form-label">Protokoll-Nr.</label><input class="form-input" id="np-nr" placeholder="z.B. BH-JF 06"></div>
+        <div class="form-group"><label class="form-label">Protokoll-Nr.</label><input class="form-input" id="np-nr" readonly style="background:#f5f5f5;color:#888"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Bauherr</label><input class="form-input" id="np-bauherr" placeholder="Müller & Partner GmbH"></div>
-        <div class="form-group"><label class="form-label">Bauvorhaben</label><input class="form-input" id="np-bauvorhaben" placeholder="Neubau Bürogebäude Süd"></div>
+        <div class="form-group"><label class="form-label">Bauherr</label><input class="form-input" id="np-bauherr" readonly style="background:#f5f5f5;color:#888"></div>
+        <div class="form-group"><label class="form-label">Bauvorhaben</label><input class="form-input" id="np-bauvorhaben" readonly style="background:#f5f5f5;color:#888"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Datum</label><input class="form-input" id="np-datum" type="date"></div>
@@ -794,20 +793,50 @@ function renderProtocolList() {
   `).join('');
 }
 
+function prepareNewProtoModal() {
+  // Determine next protocol number from existing protocols
+  let nextNr = 1;
+  let bauherr = 'Müller & Partner GmbH';
+  let bauvorhaben = 'Neubau Bürogebäude Süd';
+  if (S.protocols && S.protocols.length) {
+    // Find the highest number from existing protocol_nr fields (format: "BH-JF XX")
+    S.protocols.forEach(p => {
+      const match = (p.protokoll_nr || '').match(/(\d+)\s*$/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num >= nextNr) nextNr = num + 1;
+      }
+    });
+    // Use Bauherr/Bauvorhaben from the most recent protocol
+    bauherr = S.protocols[0].bauherr || bauherr;
+    bauvorhaben = S.protocols[0].bauvorhaben || bauvorhaben;
+  }
+  const nrStr = String(nextNr).padStart(2, '0');
+  document.getElementById('np-nr').value = `BH-JF ${nrStr}`;
+  document.getElementById('np-bauherr').value = bauherr;
+  document.getElementById('np-bauvorhaben').value = bauvorhaben;
+  document.getElementById('np-datum').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('np-ort').value = 'Teams';
+  document.getElementById('np-verfasser').value = '';
+  document.getElementById('np-kontakt').value = '';
+  openModal('new-proto');
+}
+
 async function createProtocol() {
-  const titel = document.getElementById('np-titel').value.trim();
-  if (!titel) { toast('Bitte Titel eingeben'); return; }
+  const protokollNr = document.getElementById('np-nr').value.trim();
+  if (!protokollNr) { toast('Bitte Protokoll-Nr. eingeben'); return; }
   try {
     const p = await api.post('/protocols', {
-      titel,
+      titel: protokollNr,
       bauherr: document.getElementById('np-bauherr').value,
       bauvorhaben: document.getElementById('np-bauvorhaben').value,
       datum: formatDateDE(document.getElementById('np-datum').value),
       ort: document.getElementById('np-ort').value,
       verfasser: document.getElementById('np-verfasser').value,
       kontakt: document.getElementById('np-kontakt').value,
-      protokoll_nr: document.getElementById('np-nr').value || titel,
-      protokoll_typ: 'Projekt-Jour-Fixe'
+      protokoll_nr: protokollNr,
+      protokoll_typ: 'Projekt-Jour-Fixe',
+      copy_from_last: true
     });
     closeModal('new-proto');
     toast('Protokoll angelegt ✓');
