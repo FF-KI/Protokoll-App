@@ -982,7 +982,7 @@ function renderSubtopic(s, topicId) {
           <th>Typ</th><th>Zuständig</th><th>Status</th><th>Fällig</th><th style="width:58px"></th>
         </tr></thead>
         <tbody>
-          ${filtered.length ? filtered.map(e=>renderEntry(e,s.num)).join('') :
+          ${filtered.length ? filtered.map((e,i)=>renderEntry(e,`${s.num}.${i+1}`)).join('') :
             `<tr><td colspan="8"><div class="empty-entries">Keine Einträge</div></td></tr>`}
         </tbody>
       </table>
@@ -1495,9 +1495,11 @@ function renderAufgaben() {
   if (!S.p) return;
   for (const t of S.p.topics)
     for (const s of t.subtopics)
-      for (const e of s.entries)
+      for (let i=0; i<s.entries.length; i++) {
+        const e = s.entries[i];
         if (e.status !== 'Erledigt' && e.typ === 'Aufgabe')
-          allEntries.push({...e, topicTitle: t.title, subTitle: s.title, subNum: s.num});
+          allEntries.push({...e, topicTitle: t.title, subTitle: s.title, subNum: `${s.num}.${i+1}`});
+      }
 
   const area = document.getElementById('aufgaben-area');
   area.innerHTML = `
@@ -1557,12 +1559,13 @@ function printProtocol() {
       if (!s.entries.length) {
         tableRows += `<tr class="tr-entry"><td class="td-date"></td><td colspan="3" style="color:#aaa;font-style:italic;padding:3pt 6pt">—</td></tr>`;
       }
-      for (const e of s.entries) {
+      for (let ei=0; ei<s.entries.length; ei++) {
+        const e = s.entries[ei];
         const termin = e.faellig ? fd(e.faellig)
                      : e.status==='Erledigt' ? 'erledigt'
                      : e.status==='ASAP' ? 'ASAP' : '';
         tableRows += `<tr class="tr-entry${e.is_new?' tr-new':''}">
-          <td class="td-date">${x(e.datum)}</td>
+          <td class="td-date">${x(s.num)}.${ei+1}&nbsp;&nbsp;${x(e.datum)}</td>
           <td class="td-desc">${x(e.beschreibung)}</td>
           <td class="td-resp">${x(e.zustaendig||'')}</td>
           <td class="td-termin${e.status==='ASAP'?' td-asap':''}">${x(termin)}</td>
