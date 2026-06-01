@@ -18,7 +18,8 @@ if (process.env.LANGDOCK_API_KEY) {
   const region = process.env.LANGDOCK_REGION || 'eu';
   anthropic = new Anthropic({
     apiKey: process.env.LANGDOCK_API_KEY,
-    baseURL: `https://api.langdock.com/anthropic/${region}/v1`,
+    // SDK hängt selbst /v1/messages an – baseURL daher OHNE /v1
+    baseURL: `https://api.langdock.com/anthropic/${region}`,
   });
 }
 
@@ -409,7 +410,7 @@ Regeln:
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 4096,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }]
@@ -420,9 +421,8 @@ Regeln:
     const suggestions = JSON.parse(text);
     res.json({ suggestions, struktur, offeneAufgaben });
   } catch (err) {
-    const status = err.status || 500;
     console.error('Langdock-Fehler:', err.message);
-    res.status(status === 404 ? 502 : status).json({ error: 'KI-Verarbeitung fehlgeschlagen: ' + err.message });
+    res.status(500).json({ error: 'KI-Verarbeitung fehlgeschlagen: ' + err.message });
   }
 });
 

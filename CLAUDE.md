@@ -48,11 +48,12 @@ protocols
 
 ### KI-Integration
 
-`POST /api/ki/strukturieren` sendet das Sprach-Transkript plus die bestehende Themenstruktur über die **Langdock API** an `claude-sonnet-4-20250514` und erwartet ein reines JSON-Array zurück (kein Markdown). Der Endpunkt ist ein No-op, wenn `LANGDOCK_API_KEY` nicht gesetzt ist – der Server startet trotzdem.
+`POST /api/ki/strukturieren` sendet das Sprach-Transkript plus die bestehende Themenstruktur über die **Langdock API** an `claude-haiku-4-5-20251001` und erwartet ein reines JSON-Array zurück (kein Markdown). Der Endpunkt ist ein No-op, wenn `LANGDOCK_API_KEY` nicht gesetzt ist – der Server startet trotzdem.
 
 Die Langdock API ist Anthropic-SDK-kompatibel (gleicher `@anthropic-ai/sdk` mit angepasster `baseURL`):
-- Endpoint: `https://api.langdock.com/anthropic/{region}/v1`
+- baseURL: `https://api.langdock.com/anthropic/{region}` (**ohne** `/v1` – das SDK hängt `/v1/messages` selbst an; ein zusätzliches `/v1` führt zu `/v1/v1/messages` → 404)
 - Region via `LANGDOCK_REGION` (Standard: `eu`)
+- Verfügbare Modelle des Workspaces abrufbar via `GET /anthropic/{region}/v1/models`
 
 `POST /api/ki/uebernehmen` ordnet akzeptierte Vorschläge anhand von Titel-Match oder Nummern-Match bestehenden Themen zu; neue Themen/Unterthemen werden on-the-fly angelegt. Alle so erstellten Einträge erhalten `is_new = 1`.
 
