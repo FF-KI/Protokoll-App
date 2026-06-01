@@ -43,18 +43,22 @@ protocols
 | PUT | `/api/protocols/:id/participants` | Teilnehmer + Verteiler komplett ersetzen |
 | PUT | `/api/protocols/:id/anlagen` | Anlagen komplett ersetzen |
 | POST/PUT/DELETE | `/api/topics`, `/api/subtopics`, `/api/entries` | CRUD für Hierarchie |
-| POST | `/api/ki/strukturieren` | Transkript → Claude → JSON-Vorschläge |
+| POST | `/api/ki/strukturieren` | Transkript → Langdock → JSON-Vorschläge |
 | POST | `/api/ki/uebernehmen` | Akzeptierte Vorschläge in DB schreiben |
 
 ### KI-Integration
 
-`POST /api/ki/strukturieren` sendet das Sprach-Transkript plus die bestehende Themenstruktur an `claude-sonnet-4-6` und erwartet ein reines JSON-Array zurück (kein Markdown). Der Endpunkt ist ein No-op, wenn `ANTHROPIC_API_KEY` nicht gesetzt ist – der Server startet trotzdem.
+`POST /api/ki/strukturieren` sendet das Sprach-Transkript plus die bestehende Themenstruktur über die **Langdock API** an `claude-sonnet-4-20250514` und erwartet ein reines JSON-Array zurück (kein Markdown). Der Endpunkt ist ein No-op, wenn `LANGDOCK_API_KEY` nicht gesetzt ist – der Server startet trotzdem.
+
+Die Langdock API ist Anthropic-SDK-kompatibel (gleicher `@anthropic-ai/sdk` mit angepasster `baseURL`):
+- Endpoint: `https://api.langdock.com/anthropic/{region}/v1`
+- Region via `LANGDOCK_REGION` (Standard: `eu`)
 
 `POST /api/ki/uebernehmen` ordnet akzeptierte Vorschläge anhand von Titel-Match oder Nummern-Match bestehenden Themen zu; neue Themen/Unterthemen werden on-the-fly angelegt. Alle so erstellten Einträge erhalten `is_new = 1`.
 
 ## Konfiguration
 
-Kopiere `.env.example` → `.env` und trage `ANTHROPIC_API_KEY` ein. `PORT` ist optional (Standard: 3000).
+Kopiere `.env.example` → `.env` und trage `LANGDOCK_API_KEY` ein. `LANGDOCK_REGION` (`eu`/`us`) und `PORT` sind optional.
 
 ## Bekannte Einschränkungen
 

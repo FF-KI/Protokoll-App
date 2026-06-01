@@ -210,6 +210,15 @@ body{background:var(--bg);color:var(--text);min-height:100vh}
 .new-pill{display:inline-flex;align-items:center;padding:1px 7px;background:var(--accent);
   color:var(--primary-d);border-radius:10px;font-size:10px;font-weight:700;
   text-transform:uppercase;letter-spacing:.5px;margin-left:6px}
+.update-pill{display:inline-flex;align-items:center;padding:1px 7px;background:#dbeafe;
+  color:#1d4ed8;border-radius:10px;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.5px;margin-left:6px}
+.ki-suggestion-card.update-card{border-color:#3b82f6;background:#f0f6ff}
+.ki-original-desc{font-size:12px;color:var(--muted);background:var(--bg);
+  border:1px solid var(--border);border-radius:6px;padding:6px 10px;
+  margin-bottom:6px;line-height:1.45}
+.ki-original-label{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;
+  letter-spacing:.4px;margin-bottom:3px}
 .typ-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;
   font-size:11px;font-weight:600;white-space:nowrap}
 .typ-aufgabe{background:#e8f4fd;color:#1565c0}
@@ -689,6 +698,7 @@ let S = {
   p: null,
   filter: 'alle',
   suggestions: [],
+  offeneAufgaben: [],
   pendingTopicId: null,
   pendingSubId: null,
   isAddingSub: false,
@@ -1277,6 +1287,7 @@ async function analyzeTranscript() {
   try {
     const result = await api.post('/ki/strukturieren', { protokoll_id: S.p.id, transkript });
     S.suggestions = result.suggestions;
+    S.offeneAufgaben = result.offeneAufgaben || [];
     renderKiReview();
     openModal('ki-review');
   } catch(e) {
@@ -1286,15 +1297,21 @@ async function analyzeTranscript() {
 
 function renderKiReview() {
   const list = document.getElementById('ki-list');
-  list.innerHTML = S.suggestions.map((s,i) => `
-    <div class="ki-suggestion-card accepted" id="ki-card-${i}">
+  list.innerHTML = S.suggestions.map((s, i) => {
+    const original = s.entry_id ? S.offeneAufgaben.find(a => a.entry_id === s.entry_id) : null;
+    const typClass = s.typ === 'Aufgabe' ? 'typ-aufgabe' : s.typ === 'Entscheidung' ? 'typ-entscheid' : 'typ-info';
+    const statusOptions = ['Offen','Erledigt','ASAP'].map(v => `<option ${v===s.status?'selected':''}>${v}</option>`).join('');
+    return `
+    <div class="ki-suggestion-card accepted${original ? ' update-card' : ''}" id="ki-card-${i}">
       <div class="ki-card-head">
         <span class="ki-topic-path">${esc(s.thema)} › ${esc(s.unterthema)}</span>
-        <span class="typ-badge ${s.typ==='Aufgabe'?'typ-aufgabe':s.typ==='Entscheidung'?'typ-entscheid':'typ-info'}">${s.typ}</span>
-        ${s.ist_neues_thema||s.ist_neues_unterthema ? '<span class="new-pill">NEUES THEMA</span>' : ''}
+        <span class="typ-badge ${typClass}">${esc(s.typ)}</span>
+        ${original ? '<span class="update-pill">Fortschreibung</span>' : ''}
+        ${!original && (s.ist_neues_thema||s.ist_neues_unterthema) ? '<span class="new-pill">Neues Thema</span>' : ''}
       </div>
       <div class="form-group">
         <label class="form-label">Beschreibung</label>
+        ${original ? `<div class="ki-original-label">Bisheriger Eintrag</div><div class="ki-original-desc">${esc(original.beschreibung)}</div>` : ''}
         <textarea class="form-textarea" id="ki-desc-${i}" style="min-height:60px">${esc(s.beschreibung)}</textarea>
       </div>
       <div class="form-row">
@@ -1308,17 +1325,15 @@ function renderKiReview() {
         </div>
         <div class="form-group">
           <label class="form-label">Status</label>
-          <select class="form-select" id="ki-status-${i}">
-            ${['Offen','Erledigt','ASAP'].map(v=>`<option ${v===s.status?'selected':''}>${v}</option>`).join('')}
-          </select>
+          <select class="form-select" id="ki-status-${i}">${statusOptions}</select>
         </div>
       </div>
       <div class="ki-card-actions">
         <button class="btn btn-danger btn-sm" onclick="toggleSuggestion(${i},false)">✕ Ablehnen</button>
         <button class="btn btn-success btn-sm" onclick="toggleSuggestion(${i},true)">✓ Übernehmen</button>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
   updateKiProgress();
 }
 
