@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════
 //  Bau-Protokoll Manager – Backend
-//  Node.js + Express + SQLite + Claude API
+//  Node.js + Express + SQLite + Langdock API
 // ═══════════════════════════════════════════════════════════
 require('dotenv').config();
 const express = require('express');
@@ -12,10 +12,14 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Claude-Client (optional – KI-Funktionen deaktiviert ohne Key)
+// Langdock-Client (optional – KI-Funktionen deaktiviert ohne Key)
 let anthropic = null;
-if (process.env.ANTHROPIC_API_KEY) {
-  anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+if (process.env.LANGDOCK_API_KEY) {
+  const region = process.env.LANGDOCK_REGION || 'eu';
+  anthropic = new Anthropic({
+    apiKey: process.env.LANGDOCK_API_KEY,
+    baseURL: `https://api.langdock.com/anthropic/${region}/v1`,
+  });
 }
 
 app.use(express.json({ limit: '10mb' }));
@@ -333,7 +337,7 @@ app.delete('/api/entries/:id', (req, res) => {
 
 // Transkript → Claude → strukturierte Vorschläge
 app.post('/api/ki/strukturieren', async (req, res) => {
-  if (!anthropic) return res.status(503).json({ error: 'ANTHROPIC_API_KEY nicht konfiguriert. Bitte in .env eintragen.' });
+  if (!anthropic) return res.status(503).json({ error: 'LANGDOCK_API_KEY nicht konfiguriert. Bitte in .env eintragen.' });
 
   const { protokoll_id, transkript } = req.body;
   if (!transkript?.trim()) return res.status(400).json({ error: 'Kein Transkript vorhanden' });
@@ -346,6 +350,24 @@ app.post('/api/ki/strukturieren', async (req, res) => {
     subtopics: t.subtopics.map(s => ({ num: s.num, title: s.title }))
   }));
 
+  const offeneAufgaben = [];
+  for (const t of p.topics) {
+    for (const s of t.subtopics) {
+      for (const e of s.entries) {
+        if (e.typ === 'Aufgabe' && e.status === 'Offen') {
+          offeneAufgaben.push({
+            entry_id: e.id,
+            thema: t.title,
+            unterthema: s.title,
+            beschreibung: e.beschreibung,
+            zustaendig: e.zustaendig,
+            faellig: e.faellig
+          });
+        }
+      }
+    }
+  }
+
   const systemPrompt = `Du bist ein erfahrener Bau-Projektleiter und Protokollant in Deutschland.
 Du analysierst Transkripte von Baubesprechungen und erstellst präzise, professionelle Protokolleinträge auf Deutsch.
 WICHTIG: Antworte AUSSCHLIESSLICH mit einem validen JSON-Array ohne Markdown-Formatierung.`;
@@ -355,11 +377,15 @@ WICHTIG: Antworte AUSSCHLIESSLICH mit einem validen JSON-Array ohne Markdown-For
 BESTEHENDE THEMENSTRUKTUR:
 ${JSON.stringify(struktur, null, 2)}
 
+OFFENE AUFGABEN AUS VORHERIGEN SITZUNGEN:
+${offeneAufgaben.length ? JSON.stringify(offeneAufgaben, null, 2) : '[]'}
+
 TRANSKRIPT:
 ${transkript}
 
 Erstelle JSON-Array. Format jedes Eintrags:
 {
+  "entry_id": null,
   "thema": "Exakter Titel aus Struktur ODER neuer Titel",
   "thema_num": "Nummer z.B. '1' oder 'NEU'",
   "unterthema": "Unterthema-Titel",
@@ -377,11 +403,13 @@ Regeln:
 - Ordne Punkten ZUERST bestehenden Themen zu (exakter Titel-Match priorisieren)
 - Typ 'Aufgabe': etwas muss getan werden | 'Info': reine Information | 'Entscheidung': Entscheidung gefallen
 - Formuliere jeden Punkt vollständig und eigenständig verständlich
-- Erkenne Fälligkeitsdaten und Zuständigkeiten aus dem Kontext`;
+- Erkenne Fälligkeitsdaten und Zuständigkeiten aus dem Kontext
+- Wenn ein Transkript-Punkt eine OFFENE AUFGABE aktualisiert (erledigt, neue Fälligkeit, neuer Zuständiger, Statusänderung): setze "entry_id" auf die ID der bestehenden Aufgabe – lege KEINEN neuen Eintrag an
+- entry_id bleibt null für wirklich neue Punkte`;
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 4096,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }]
@@ -390,9 +418,9 @@ Regeln:
     let text = response.content[0].text.trim();
     text = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
     const suggestions = JSON.parse(text);
-    res.json({ suggestions, struktur });
+    res.json({ suggestions, struktur, offeneAufgaben });
   } catch (err) {
-    console.error('Claude-Fehler:', err.message);
+    console.error('Langdock-Fehler:', err.message);
     res.status(500).json({ error: 'KI-Verarbeitung fehlgeschlagen: ' + err.message });
   }
 });
@@ -409,7 +437,17 @@ app.post('/api/ki/uebernehmen', (req, res) => {
   const addSub   = db.prepare('INSERT INTO subtopics (topic_id,num,title,sort_order) VALUES (?,?,?,?)');
   const addEntry = db.prepare(`INSERT INTO entries (subtopic_id,datum,beschreibung,typ,zustaendig,status,faellig,is_new) VALUES (?,?,?,?,?,?,?,1)`);
 
+  const updateEntry = db.prepare(
+    `UPDATE entries SET beschreibung=?, typ=?, zustaendig=?, status=?, faellig=?, is_new=1 WHERE id=?`
+  );
+
   for (const s of accepted) {
+    // Bestehenden Eintrag fortschreiben
+    if (s.entry_id) {
+      updateEntry.run(s.beschreibung, s.typ||'Aufgabe', s.zustaendig||'', s.status||'Offen', s.faellig||'', s.entry_id);
+      continue;
+    }
+
     // Thema suchen oder anlegen
     let topic = p.topics.find(t =>
       t.title.toLowerCase() === s.thema.toLowerCase() ||
@@ -451,9 +489,9 @@ app.listen(PORT, () => {
   console.log(`✅  Server: http://localhost:${PORT}`);
   console.log(`💾  Datenbank: protokoll.db (SQLite)`);
   if (anthropic) {
-    console.log(`🤖  Claude: verbunden (claude-sonnet-4-6)`);
+    console.log(`🤖  Langdock: verbunden (claude-haiku-4-5-20251001)`);
   } else {
-    console.log(`⚠️   Claude: ANTHROPIC_API_KEY fehlt – KI deaktiviert`);
+    console.log(`⚠️   Langdock: LANGDOCK_API_KEY fehlt – KI deaktiviert`);
     console.log(`    → .env Datei anlegen und API-Key eintragen`);
   }
   console.log('─────────────────────────────────────────\n');
