@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════
 require('dotenv').config();
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const Database = require('better-sqlite3');
 const Anthropic = require('@anthropic-ai/sdk');
 const path = require('path');
@@ -19,6 +20,24 @@ if (process.env.ANTHROPIC_API_KEY) {
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Rate Limiting – allgemein für alle API-Routen
+app.use('/api/', rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Zu viele Anfragen – bitte in einer Minute erneut versuchen.' }
+}));
+
+// Strengeres Limit nur für KI-Endpunkte (API-Kosten schützen)
+app.use('/api/ki/', rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'KI-Limit erreicht – maximal 10 Anfragen pro Minute.' }
+}));
 
 // ── DATENBANK ────────────────────────────────────────────────
 const db = new Database(path.join(__dirname, 'protokoll.db'));
