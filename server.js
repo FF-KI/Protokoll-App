@@ -409,7 +409,7 @@ Regeln:
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 4096,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }]
@@ -420,8 +420,9 @@ Regeln:
     const suggestions = JSON.parse(text);
     res.json({ suggestions, struktur, offeneAufgaben });
   } catch (err) {
+    const status = err.status || 500;
     console.error('Langdock-Fehler:', err.message);
-    res.status(500).json({ error: 'KI-Verarbeitung fehlgeschlagen: ' + err.message });
+    res.status(status === 404 ? 502 : status).json({ error: 'KI-Verarbeitung fehlgeschlagen: ' + err.message });
   }
 });
 
